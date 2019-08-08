@@ -98,16 +98,9 @@ int main(int argc, char **argv)
 	}
 	*/
 
-	if (tls_config_set_cert_file(cfg, "/foo.crt") < 0)
+	if (tls_config_set_keypair_file(cfg, "/tmp/my.crt", "/tmp/my.key") < 0)
 	{
-		fprintf(stderr, "tls_config_set_cert_file(): %s\n",
-				tls_config_error(cfg));
-		tls_config_free(cfg);
-		return EXIT_FAILURE;
-	}
-	if (tls_config_set_key_file(cfg, "/foo.key") < 0)
-	{
-		fprintf(stderr, "tls_config_set_key_file(): %s\n",
+		fprintf(stderr, "tls_config_set_keypair_file(): %s\n",
 				tls_config_error(cfg));
 		tls_config_free(cfg);
 		return EXIT_FAILURE;
@@ -154,7 +147,7 @@ int main(int argc, char **argv)
 			printf("CLIENT: %s\n", msg);
 
 		if (amt_read < 0)
-			printf(stderr, "tls_read(): %s\n", tls_error(accepted_tls));
+			fprintf(stderr, "tls_read(): %s\n", tls_error(accepted_tls));
 
 		tls_close(accepted_tls);
 		tls_free(accepted_tls);
