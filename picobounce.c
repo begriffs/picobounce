@@ -136,7 +136,7 @@ int main(int argc, char **argv)
 			return EXIT_FAILURE;
 		}
 		/* TLS handshake */
-		if (tls_accept_socket(tls, &accepted_tls, sock) < 0)
+		if (tls_accept_socket(tls, &accepted_tls, accepted) < 0)
 		{
 			fprintf(stderr, "tls_accept_socket(): %s\n", tls_error(tls));
 			close(accepted);
