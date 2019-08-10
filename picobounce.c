@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <netdb.h>
@@ -9,7 +10,8 @@
 #include <tls.h>
 
 #define TCP_BACKLOG  SOMAXCONN
-#define MAX_IRC_MSG  513
+#define MAX_IRC_MSG  512
+#define MAX_IRC_NICK 9
 
 /* adapted from
  * http://pubs.opengroup.org/onlinepubs/9699919799/functions/getaddrinfo.html
@@ -64,6 +66,35 @@ negotiate_listen(const char *svc)
 	return sock;
 }
 
+void irc_session(struct tls *tls)
+{
+	char msg[MAX_IRC_MSG+1],
+	     nick[MAX_IRC_NICK+1] = "*";
+	char *line, *cap;
+	ssize_t amt_read;
+
+	while ((amt_read = tls_read(tls, msg, MAX_IRC_MSG)) > 0)
+	{
+		for (line = strtok(msg, "\n"); line; line = strtok(NULL, "\n"))
+		{
+			printf("-> %s\n", line);
+			if (strncmp(line, "NICK ", 5) == 0)
+			{
+				snprintf(nick, MAX_IRC_NICK, "%s", line+5);
+				printf("Nick is now %s\n", nick);
+			}
+			if (strncmp(line, "CAP REQ ", 8) == 0)
+			{
+				cap = line+8;
+				printf("Cap? %s\n", cap);
+			}
+		}
+	}
+
+	if (amt_read < 0)
+		fprintf(stderr, "tls_read(): %s\n", tls_error(tls));
+}
+
 /* see
  * https://github.com/bob-beck/libtls/blob/master/TUTORIAL.md#basic-libtls-use
  * and
@@ -86,17 +117,6 @@ int main(int argc, char **argv)
 		fputs("tls_config_new() failed\n", stderr);
 		return EXIT_FAILURE;
 	}
-
-	/*
-	printf("CA Cert file: %s\n", tls_default_ca_cert_file());
-	if (tls_config_set_ca_file(cfg, tls_default_ca_cert_file()) < 0)
-	{
-		fprintf(stderr, "Cannot set ca file: %s\n",
-				tls_config_error(cfg));
-		tls_config_free(cfg);
-		return EXIT_FAILURE;
-	}
-	*/
 
 	if (tls_config_set_keypair_file(cfg, "/tmp/my.crt", "/tmp/my.key") < 0)
 	{
@@ -124,8 +144,6 @@ int main(int argc, char **argv)
 	{
 		int accepted;
 		struct tls *accepted_tls;
-		char msg[MAX_IRC_MSG];
-		ssize_t amt_read;
 
 		/* open socket */
 		if ((accepted = accept(sock, NULL, NULL)) < 0)
@@ -143,11 +161,7 @@ int main(int argc, char **argv)
 			continue;
 		}
 
-		while ((amt_read = tls_read(accepted_tls, msg, MAX_IRC_MSG)) > 0)
-			printf("CLIENT: %s\n", msg);
-
-		if (amt_read < 0)
-			fprintf(stderr, "tls_read(): %s\n", tls_error(accepted_tls));
+		irc_session(accepted_tls);
 
 		tls_close(accepted_tls);
 		tls_free(accepted_tls);
