@@ -6,3 +6,7 @@ LDFLAGS = `pkg-config --libs libtls`
 .SUFFIXES : .o .c
 
 all : picobounce
+
+picobounce : picobounce.o window.o
+
+window.o : window.c window.h

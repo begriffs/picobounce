@@ -9,6 +9,8 @@
 
 #include <tls.h>
 
+#include "window.h"
+
 #define TCP_BACKLOG  SOMAXCONN
 #define MAX_IRC_MSG  512
 #define MAX_IRC_NICK 9
@@ -72,10 +74,18 @@ void irc_session(struct tls *tls)
 	     nick[MAX_IRC_NICK+1] = "*";
 	char *line, *cap;
 	ssize_t amt_read;
+	window *w;
+
+	if (!(w = window_alloc(MAX_IRC_MSG)))
+	{
+		fputs("Failed to allocate irc message buffer\n", stderr);
+		return;
+	}
 
 	while ((amt_read = tls_read(tls, msg, MAX_IRC_MSG)) > 0)
 	{
-		for (line = strtok(msg, "\n"); line; line = strtok(NULL, "\n"))
+		window_fill(w, msg);
+		while ((line = window_tok(w, '\n')) != NULL)
 		{
 			printf("-> %s\n", line);
 			if (strncmp(line, "NICK ", 5) == 0)
@@ -93,6 +103,8 @@ void irc_session(struct tls *tls)
 
 	if (amt_read < 0)
 		fprintf(stderr, "tls_read(): %s\n", tls_error(tls));
+
+	window_free(w);
 }
 
 /* see
