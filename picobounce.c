@@ -94,7 +94,6 @@ void irc_session(struct tls *tls)
 {
 	char msg[MAX_IRC_MSG+1],
 	     nick[MAX_IRC_NICK+1] = "*";
-	char *line, *cap;
 	ssize_t amt_read;
 	window *w;
 
@@ -106,6 +105,8 @@ void irc_session(struct tls *tls)
 
 	while ((amt_read = tls_read(tls, msg, MAX_IRC_MSG)) > 0)
 	{
+		char *line;
+
 		window_fill(w, msg);
 		while ((line = window_next(w)) != NULL)
 		{
@@ -117,7 +118,7 @@ void irc_session(struct tls *tls)
 			}
 			if (strncmp(line, "CAP REQ ", 8) == 0)
 			{
-				cap = line+8;
+				char *cap = line+8;
 				irc_printf(tls, ":localhost CAP %s %s :%s\n",
 						nick, strcmp(cap, "sasl") ? "NAK" : "ACK", cap);
 			}
