@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,6 +69,27 @@ negotiate_listen(const char *svc)
 	return sock;
 }
 
+/* wrap tls_write with formatting and error checking */
+ssize_t irc_printf(struct tls *tls, const char *fmt, ...)
+{
+	va_list ap;
+	ssize_t ret;
+	char out[MAX_IRC_MSG+1];
+
+	va_start(ap, fmt);
+
+	if (vsnprintf(out, MAX_IRC_MSG, fmt, ap) > MAX_IRC_MSG)
+		fprintf(stderr, "irc_printf(): message truncated: %s\n", fmt);
+
+	if ((ret = tls_write(tls, out, strlen(out))) < 0)
+		fprintf(stderr, "tls_write(): %s\n", tls_error(tls));
+
+	printf("<- %s", out);
+
+	va_end(ap);
+	return ret;
+}
+
 void irc_session(struct tls *tls)
 {
 	char msg[MAX_IRC_MSG+1],
@@ -85,18 +107,19 @@ void irc_session(struct tls *tls)
 	while ((amt_read = tls_read(tls, msg, MAX_IRC_MSG)) > 0)
 	{
 		window_fill(w, msg);
-		while ((line = window_tok(w, '\n')) != NULL)
+		while ((line = window_next(w)) != NULL)
 		{
 			printf("-> %s\n", line);
 			if (strncmp(line, "NICK ", 5) == 0)
 			{
 				snprintf(nick, MAX_IRC_NICK, "%s", line+5);
-				printf("Nick is now %s\n", nick);
+				printf("!! Nick is now %s\n", nick);
 			}
 			if (strncmp(line, "CAP REQ ", 8) == 0)
 			{
 				cap = line+8;
-				printf("Cap? %s\n", cap);
+				irc_printf(tls, ":localhost CAP %s %s :%s\n",
+						nick, strcmp(cap, "sasl") ? "NAK" : "ACK", cap);
 			}
 		}
 	}
@@ -112,7 +135,7 @@ void irc_session(struct tls *tls)
  * and
  * https://github.com/OSUSecLab/Stacco/blob/b4a598c3061537f630526a07545e276cccf298cb/test/libressl/server.c
  */
-int main(int argc, char **argv)
+int main(void)
 {
 	int sock;
 	struct tls_config *cfg;

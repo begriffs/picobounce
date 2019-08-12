@@ -26,7 +26,7 @@ void window_free(window *w)
 		free(w->buf);
 	free(w);
 }
-char *window_tok(window *w, char tok)
+char *window_next(window *w)
 {
 	char *old;
 
@@ -34,9 +34,12 @@ char *window_tok(window *w, char tok)
 		return NULL;
 
 	for (old = w->reader; *w->reader; w->reader++)
-		if (*w->reader == tok)
+		if (*w->reader == '\n' || *w->reader == '\r')
 		{
 			*w->reader++ = '\0';
+			if (*w->reader == '\n' || *w->reader == '\r')
+				*w->reader++ = '\0';
+
 			return old;
 		}
 
