@@ -1,6 +1,8 @@
-CFLAGS = -std=c99 -DNDEBUG -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic -Wshadow `pkg-config --cflags libtls`
+LIBS = libtls libgsasl
 
-LDFLAGS = `pkg-config --libs libtls`
+CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic -Wshadow `pkg-config --cflags $(LIBS)`
+
+LDFLAGS = `pkg-config --libs $(LIBS)`
 
 .SUFFIXES :
 .SUFFIXES : .o .c
