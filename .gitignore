@@ -1,2 +1,4 @@
 picobounce
 *.o
+*.crt
+*.key

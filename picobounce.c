@@ -186,7 +186,7 @@ int main(void)
 		return EXIT_FAILURE;
 	}
 
-	if (tls_config_set_keypair_file(cfg, "/tmp/my.crt", "/tmp/my.key") < 0)
+	if (tls_config_set_keypair_file(cfg, "my.crt", "my.key") < 0)
 	{
 		fprintf(stderr, "tls_config_set_keypair_file(): %s\n",
 				tls_config_error(cfg));
