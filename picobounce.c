@@ -116,6 +116,7 @@ void irc_session(struct tls *tls)
 	{
 		char *line;
 
+		msg[amt_read] = '\0';
 		window_fill(w, msg);
 		while ((line = window_next(w)) != NULL)
 		{
