@@ -126,12 +126,14 @@ void irc_session(struct tls *tls)
 				snprintf(nick, MAX_IRC_NICK, "%s", line+5);
 				printf("!! Nick is now %s\n", nick);
 			}
-			else if (strncmp(line, "CAP REQ ", 8) == 0)
+			else if (strncmp(line, "CAP REQ :", 9) == 0)
 			{
-				char *cap = line+8;
+				char *cap = line+9;
 				irc_printf(tls, ":localhost CAP %s %s :%s\n",
 						nick, strcmp(cap, "sasl") ? "NAK" : "ACK", cap);
 			}
+			else if (strncmp(line, "CAP LS 302", 8) == 0)
+				irc_printf(tls, ":localhost CAP %s LS :sasl\n", nick);
 			else if (strncmp(line, "AUTHENTICATE ", 13) == 0)
 			{
 				char *auth = line+13;
@@ -148,9 +150,9 @@ void irc_session(struct tls *tls)
 						continue;
 					}
 					gsasl_step64 (sasl_sess, auth, NULL);
-					printf("authid=%s authzid=%s\n",
+					printf("authid=%s pass=%s\n",
 							gsasl_property_fast(sasl_sess, GSASL_AUTHID),
-							gsasl_property_fast(sasl_sess, GSASL_AUTHZID));
+							gsasl_property_fast(sasl_sess, GSASL_PASSWORD));
 					gsasl_finish(sasl_sess);
 				}
 			}
