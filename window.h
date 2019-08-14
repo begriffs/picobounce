@@ -15,6 +15,6 @@ typedef struct window
 window *window_alloc(size_t cap);
 void    window_free(window *w);
 char   *window_next(window *w);
-bool    window_fill(window *w, char *s);
+void    window_fill(window *w, char *s);
 
 #endif

@@ -173,7 +173,7 @@ int main(void)
 	int sock;
 	struct tls_config *cfg;
 	struct tls *tls;
-   
+
 	if ((sock = negotiate_listen("6697")) < 0)
 	{
 		fputs("Unable to listen on 6697\n", stderr);

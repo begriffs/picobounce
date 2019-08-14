@@ -1,7 +1,18 @@
+#include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "window.h"
+
+bool corrupted(const char *s)
+{
+	for ( ; *s; s++)
+		if (*s > 127)
+			return true;
+	return false;
+}
 
 window *window_alloc(size_t cap)
 {
@@ -30,8 +41,7 @@ char *window_next(window *w)
 {
 	char *old;
 
-	if (!w || w->exhausted)
-		return NULL;
+	assert(w && !w->exhausted);
 
 	for (old = w->reader; *w->reader; w->reader++)
 		if (*w->reader == '\n' || *w->reader == '\r')
@@ -49,12 +59,12 @@ char *window_next(window *w)
 	return NULL;
 }
 
-bool window_fill(window *w, char *s)
+void window_fill(window *w, char *s)
 {
 	size_t remainder;
 
-	if (!w || !w->exhausted)
-		return false;
+	assert(w && w->exhausted);
+
 	/* shift trailing data to start of buf */
 	remainder = strlen(w->reader);
 	memmove(w->buf, w->reader, remainder);
@@ -63,5 +73,4 @@ bool window_fill(window *w, char *s)
 	/* rewind reader */
 	w->reader = w->buf;
 	w->exhausted = false;
-	return true;
 }
