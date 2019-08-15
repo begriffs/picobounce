@@ -135,7 +135,7 @@ void irc_session(struct tls *tls)
 				{
 					char username[MAX_SASL_FIELD],
 					     password[MAX_SASL_FIELD];
-					extract_user_pass(auth, username, password);
+					extract_creds(auth, username, password);
 					printf("authid=%s pass=%s\n", username, password);
 				}
 			}

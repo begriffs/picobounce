@@ -1,4 +1,4 @@
-OBJS = window.o base64.o sasl.o
+OBJS = window.o sasl.o
 
 CFLAGS = -std=c99 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic -Wshadow
 
@@ -10,9 +10,7 @@ picobounce : picobounce.c $(OBJS)
 
 window.o : window.c window.h
 
-base64.o : base64.c base64.h
-
-sasl.o : base64.o sasl.c sasl.h
+sasl.o : sasl.c sasl.h
 
 clean :
 	rm picobounce *.o
