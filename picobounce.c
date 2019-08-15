@@ -8,9 +8,9 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-#include <gsasl.h>
 #include <tls.h>
 
+#include "sasl.h"
 #include "window.h"
 
 #define TCP_BACKLOG  SOMAXCONN
@@ -96,19 +96,11 @@ void irc_session(struct tls *tls)
 	char msg[MAX_IRC_MSG+1],
 	     nick[MAX_IRC_NICK+1] = "*";
 	ssize_t amt_read;
-	Gsasl *sasl_ctx = NULL;
-	int sasl_code;
 	window *w;
 
 	if (!(w = window_alloc(MAX_IRC_MSG)))
 	{
 		fputs("Failed to allocate irc message buffer\n", stderr);
-		return;
-	}
-
-	if ((sasl_code = gsasl_init(&sasl_ctx)) != GSASL_OK)
-	{
-		fprintf(stderr, "gsasl_init(): %s\n", gsasl_strerror(sasl_code));
 		return;
 	}
 
@@ -141,19 +133,10 @@ void irc_session(struct tls *tls)
 					irc_printf(tls, "AUTHENTICATE +\n");
 				else
 				{
-					Gsasl_session *sasl_sess = NULL;
-					sasl_code = gsasl_server_start(sasl_ctx, "PLAIN", &sasl_sess);
-					if (sasl_code != GSASL_OK)
-					{
-						fprintf(stderr, "gsasl_server_start(): %s\n",
-								gsasl_strerror(sasl_code));
-						continue;
-					}
-					gsasl_step64 (sasl_sess, auth, NULL);
-					printf("authid=%s pass=%s\n",
-							gsasl_property_fast(sasl_sess, GSASL_AUTHID),
-							gsasl_property_fast(sasl_sess, GSASL_PASSWORD));
-					gsasl_finish(sasl_sess);
+					char username[MAX_SASL_FIELD],
+					     password[MAX_SASL_FIELD];
+					extract_user_pass(auth, username, password);
+					printf("authid=%s pass=%s\n", username, password);
 				}
 			}
 		}
@@ -163,7 +146,6 @@ void irc_session(struct tls *tls)
 		fprintf(stderr, "tls_read(): %s\n", tls_error(tls));
 
 	window_free(w);
-	gsasl_done(sasl_ctx);
 }
 
 /* see
