@@ -91,6 +91,11 @@ ssize_t irc_printf(struct tls *tls, const char *fmt, ...)
 	return ret;
 }
 
+bool is_login_correct(const char *user, const char *pass)
+{
+	return (strcmp(user, "mrfun") == 0) && (strcmp(pass, "fun") == 0);
+}
+
 void irc_session(struct tls *tls)
 {
 	char msg[MAX_IRC_MSG+1],
@@ -131,12 +136,20 @@ void irc_session(struct tls *tls)
 				char *auth = line+13;
 				if (strcmp(auth, "PLAIN") == 0)
 					irc_printf(tls, "AUTHENTICATE +\n");
+				else if (strcmp(auth, "*") == 0)
+					irc_printf(tls,
+							":localhost 906 %s :SASL authentication aborted\n", nick);
 				else
 				{
 					char username[MAX_SASL_FIELD],
 					     password[MAX_SASL_FIELD];
 					extract_creds(auth, username, password);
-					printf("authid=%s pass=%s\n", username, password);
+					if (is_login_correct(username, password))
+						irc_printf(tls,
+								":localhost 903 %s :SASL authentication successful\n", nick);
+					else
+						irc_printf(tls,
+								":localhost 904 %s :SASL authentication failed\n", nick);
 				}
 			}
 		}
