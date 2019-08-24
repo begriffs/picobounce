@@ -162,6 +162,17 @@ void irc_session(struct tls *tls)
 	window_free(w);
 }
 
+static struct tls_config *cfg;
+static struct tls *tls;
+static struct irc_network *net;
+
+static void cleanup(void)
+{
+	if (tls) tls_free(tls);
+	if (cfg) tls_config_free(cfg);
+	if (net) irc_network_config_free(net);
+}
+
 /* see
  * https://github.com/bob-beck/libtls/blob/master/TUTORIAL.md#basic-libtls-use
  * and
@@ -170,15 +181,15 @@ void irc_session(struct tls *tls)
 int main(int argc, const char **argv)
 {
 	int sock;
-	struct tls_config *cfg;
-	struct tls *tls;
-	struct irc_network *net;
 
 	if (argc != 2)
 	{
 		fprintf(stderr, "Usage: %s path-to-config\n", *argv);
 		return EXIT_FAILURE;
 	}
+
+	atexit(cleanup);
+
 	if (!(net = load_config(argv[1])))
 	{
 		fprintf(stderr, "Failed to load config from \"%s\"\n", argv[1]);
@@ -188,14 +199,12 @@ int main(int argc, const char **argv)
 	if ((sock = negotiate_listen(net->port)) < 0)
 	{
 		fprintf(stderr, "Unable to listen on port \"%s\"\n", net->port);
-		irc_network_config_free(net);
 		return EXIT_FAILURE;
 	}
 
 	if ((cfg = tls_config_new()) == NULL)
 	{
 		fputs("tls_config_new() failed\n", stderr);
-		irc_network_config_free(net);
 		return EXIT_FAILURE;
 	}
 
@@ -203,24 +212,17 @@ int main(int argc, const char **argv)
 	{
 		fprintf(stderr, "tls_config_set_keypair_file(): %s\n",
 				tls_config_error(cfg));
-		irc_network_config_free(net);
-		tls_config_free(cfg);
 		return EXIT_FAILURE;
 	}
 
 	if ((tls = tls_server()) == NULL)
 	{
 		fputs("tls_server() failed\n", stderr);
-		irc_network_config_free(net);
-		tls_config_free(cfg);
 		return EXIT_FAILURE;
 	}
 
 	if (tls_configure(tls, cfg) < 0) {
 		fprintf(stderr, "tls_configure(): %s\n", tls_error(tls));
-		irc_network_config_free(net);
-		tls_free(tls);
-		tls_config_free(cfg);
 		return EXIT_FAILURE;
 	}
 
@@ -233,9 +235,6 @@ int main(int argc, const char **argv)
 		if ((accepted = accept(sock, NULL, NULL)) < 0)
 		{
 			perror("accept()");
-			irc_network_config_free(net);
-			tls_free(tls);
-			tls_config_free(cfg);
 			return EXIT_FAILURE;
 		}
 		/* TLS handshake */
@@ -255,8 +254,5 @@ int main(int argc, const char **argv)
 
 	/* should not get here */
 	close(sock);
-	irc_network_config_free(net);
-	tls_free(tls);
-	tls_config_free(cfg);
 	return EXIT_SUCCESS;
 }
