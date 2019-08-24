@@ -185,17 +185,17 @@ int main(int argc, const char **argv)
 		return EXIT_FAILURE;
 	}
 
-	free_config(net);
-
-	if ((sock = negotiate_listen("6697")) < 0)
+	if ((sock = negotiate_listen(net->port)) < 0)
 	{
-		fputs("Unable to listen on 6697\n", stderr);
+		fprintf(stderr, "Unable to listen on port \"%s\"\n", net->port);
+		irc_network_config_free(net);
 		return EXIT_FAILURE;
 	}
 
 	if ((cfg = tls_config_new()) == NULL)
 	{
 		fputs("tls_config_new() failed\n", stderr);
+		irc_network_config_free(net);
 		return EXIT_FAILURE;
 	}
 
@@ -203,6 +203,7 @@ int main(int argc, const char **argv)
 	{
 		fprintf(stderr, "tls_config_set_keypair_file(): %s\n",
 				tls_config_error(cfg));
+		irc_network_config_free(net);
 		tls_config_free(cfg);
 		return EXIT_FAILURE;
 	}
@@ -210,12 +211,14 @@ int main(int argc, const char **argv)
 	if ((tls = tls_server()) == NULL)
 	{
 		fputs("tls_server() failed\n", stderr);
+		irc_network_config_free(net);
 		tls_config_free(cfg);
 		return EXIT_FAILURE;
 	}
 
 	if (tls_configure(tls, cfg) < 0) {
 		fprintf(stderr, "tls_configure(): %s\n", tls_error(tls));
+		irc_network_config_free(net);
 		tls_free(tls);
 		tls_config_free(cfg);
 		return EXIT_FAILURE;
@@ -230,6 +233,7 @@ int main(int argc, const char **argv)
 		if ((accepted = accept(sock, NULL, NULL)) < 0)
 		{
 			perror("accept()");
+			irc_network_config_free(net);
 			tls_free(tls);
 			tls_config_free(cfg);
 			return EXIT_FAILURE;
@@ -251,6 +255,7 @@ int main(int argc, const char **argv)
 
 	/* should not get here */
 	close(sock);
+	irc_network_config_free(net);
 	tls_free(tls);
 	tls_config_free(cfg);
 	return EXIT_SUCCESS;

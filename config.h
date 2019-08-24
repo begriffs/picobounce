@@ -4,12 +4,12 @@
 struct irc_network
 {
 	char *host;
-	int port;
+	char *port;
 	char *nick;
 	char *pass;
 };
 
 struct irc_network *load_config(const char *path);
-void free_config(struct irc_network *net);
+void irc_network_config_free(struct irc_network *net);
 
 #endif

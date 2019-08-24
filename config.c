@@ -42,25 +42,17 @@ struct irc_network *load_config(const char *path)
 		*val++ = '\0';
 		if (!(val_copy = strdup(val)))
 		{
-			fprintf(stderr, "Failed to allocate config value\n");
+			fprintf(stderr,
+				"Failed to allocate config value for %s\n", line);
 			fclose(f);
-			free_config(net);
+			irc_network_config_free(net);
 			return NULL;
 		}
 
 		if (strcmp(line, "host") == 0)
 			net->host = val_copy;
 		else if (strcmp(line, "port") == 0)
-		{
-			char *end;
-			long p = strtol(val, &end, 10);
-			if (*val == '\0' || *end != '\0')
-				fprintf(stderr, "Not a valid port number: \"%s\"\n", val);
-			else if (p < 0 || p >= 65535)
-				fprintf(stderr, "Port number out of range: %ld\n", p);
-			else
-				net->port = p;
-		}
+			net->port = val_copy;
 		else if (strcmp(line, "nick") == 0)
 			net->nick = val_copy;
 		else if (strcmp(line, "pass") == 0)
@@ -77,7 +69,7 @@ struct irc_network *load_config(const char *path)
 	return net;
 }
 
-void free_config(struct irc_network *net)
+void irc_network_config_free(struct irc_network *net)
 {
 	if (!net)
 		return;
