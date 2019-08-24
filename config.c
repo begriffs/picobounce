@@ -43,6 +43,7 @@ struct irc_network *load_config(const char *path)
 		{
 			fprintf(stderr, "Failed to allocate config value\n");
 			fclose(f);
+			free_config(net);
 			return NULL;
 		}
 

@@ -36,7 +36,7 @@ bool extract_creds(const char *b64, char *user, char *pass)
 */
 
 // maps A=>0,B=>1..
-const static unsigned char unb64[]={
+static const unsigned char unb64[]={
   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //10 
   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //20 
   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //30 

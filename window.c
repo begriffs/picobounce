@@ -6,14 +6,6 @@
 
 #include "window.h"
 
-bool corrupted(const char *s)
-{
-	for ( ; *s; s++)
-		if (*s > 127)
-			return true;
-	return false;
-}
-
 window *window_alloc(size_t cap)
 {
 	window *ret = malloc(sizeof(window));

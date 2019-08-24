@@ -1,6 +1,6 @@
 OBJS = window.o sasl.o config.o
 
-CFLAGS = -std=c99 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic -Wshadow
+CFLAGS = -std=c99 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wshadow
 
 .SUFFIXES :
 .SUFFIXES : .o .c
