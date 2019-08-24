@@ -30,6 +30,7 @@ struct irc_network *load_config(const char *path)
 	errno = 0;
 	while (fgets(line, sizeof line, f))
 	{
+		line[strcspn(line, "\n")] = '\0';
 		val = strchr(line, '=');
 		if (!val)
 		{
@@ -39,7 +40,7 @@ struct irc_network *load_config(const char *path)
 
 		/* end string at key, and check */
 		*val++ = '\0';
-		if (!(val_copy = malloc(strlen(val)+1)))
+		if (!(val_copy = strdup(val)))
 		{
 			fprintf(stderr, "Failed to allocate config value\n");
 			fclose(f);

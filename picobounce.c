@@ -10,6 +10,7 @@
 
 #include <tls.h>
 
+#include "config.h"
 #include "sasl.h"
 #include "window.h"
 
@@ -166,11 +167,25 @@ void irc_session(struct tls *tls)
  * and
  * https://github.com/OSUSecLab/Stacco/blob/b4a598c3061537f630526a07545e276cccf298cb/test/libressl/server.c
  */
-int main(void)
+int main(int argc, const char **argv)
 {
 	int sock;
 	struct tls_config *cfg;
 	struct tls *tls;
+	struct irc_network *net;
+
+	if (argc != 2)
+	{
+		fprintf(stderr, "Usage: %s path-to-config\n", *argv);
+		return EXIT_FAILURE;
+	}
+	if (!(net = load_config(argv[1])))
+	{
+		fprintf(stderr, "Failed to load config from \"%s\"\n", argv[1]);
+		return EXIT_FAILURE;
+	}
+
+	free_config(net);
 
 	if ((sock = negotiate_listen("6697")) < 0)
 	{
