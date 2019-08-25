@@ -10,8 +10,8 @@
 struct irc_network *load_config(const char *path)
 {
 	FILE *f;
-	char *val, *val_copy;
-	char line[512];
+	char *val;
+	char line[MAX_CONFIG_LINE];
 	struct irc_network *net;
 
 	errno = 0;
@@ -32,7 +32,7 @@ struct irc_network *load_config(const char *path)
 	errno = 0;
 	while (fgets(line, ARR_LEN(line), f))
 	{
-		const struct { char *name; char **dest; } opts[] =
+		const struct { char *name; char (*dest)[MAX_CONFIG_LINE]; } opts[] =
 		{
 			{"local_host", &net->local_host},
 			{"local_port", &net->local_port},
@@ -53,39 +53,18 @@ struct irc_network *load_config(const char *path)
 
 		/* end string at key, and check */
 		*val++ = '\0';
-		if (!(val_copy = strdup(val)))
-		{
-			fprintf(stderr,
-				"Failed to allocate config value for %s\n", line);
-			fclose(f);
-			irc_network_config_free(net);
-			return NULL;
-		}
 
 		for (i = 0; i < ARR_LEN(opts); i++)
 			if (strcmp(line, opts[i].name) == 0)
 			{
-				*opts[i].dest = val_copy;
+				strcpy(*opts[i].dest, val);
 				break;
 			}
 		if (i == ARR_LEN(opts))
-		{
-			free(val_copy);
 			fprintf(stderr, "Unknown config key: %s\n", line);
-		}
 	}
 	if (ferror(f))
 		perror("load_config");
 
 	return net;
-}
-
-void irc_network_config_free(struct irc_network *net)
-{
-	if (!net)
-		return;
-	if (net->host) free(net->host);
-	if (net->nick) free(net->nick);
-	if (net->pass) free(net->pass);
-	free(net);
 }

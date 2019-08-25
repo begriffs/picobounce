@@ -1,20 +1,21 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#define MAX_CONFIG_LINE 512
+
 struct irc_network
 {
-	char *local_host;
-	char *local_port;
-	char *local_user;
-	char *local_pass;
+	char local_host[MAX_CONFIG_LINE];
+	char local_port[MAX_CONFIG_LINE];
+	char local_user[MAX_CONFIG_LINE];
+	char local_pass[MAX_CONFIG_LINE];
 
-	char *host;
-	char *port;
-	char *nick;
-	char *pass;
+	char host[MAX_CONFIG_LINE];
+	char port[MAX_CONFIG_LINE];
+	char nick[MAX_CONFIG_LINE];
+	char pass[MAX_CONFIG_LINE];
 };
 
 struct irc_network *load_config(const char *path);
-void irc_network_config_free(struct irc_network *net);
 
 #endif

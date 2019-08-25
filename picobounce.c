@@ -166,7 +166,7 @@ static void cleanup(void)
 {
 	if (tls) tls_free(tls);
 	if (cfg) tls_config_free(cfg);
-	if (net) irc_network_config_free(net);
+	if (net) free(net);
 }
 
 /* see
