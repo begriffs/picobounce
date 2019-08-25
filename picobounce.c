@@ -72,7 +72,7 @@ negotiate_listen(const char *svc)
 }
 
 /* wrap tls_write with formatting and error checking */
-ssize_t irc_printf(struct tls *tls, const char *fmt, ...)
+static ssize_t irc_printf(struct tls *tls, const char *fmt, ...)
 {
 	va_list ap;
 	ssize_t ret;
@@ -92,12 +92,7 @@ ssize_t irc_printf(struct tls *tls, const char *fmt, ...)
 	return ret;
 }
 
-bool is_login_correct(const char *user, const char *pass)
-{
-	return (strcmp(user, "mrfun") == 0) && (strcmp(pass, "fun") == 0);
-}
-
-void irc_session(struct tls *tls)
+void irc_session(struct tls *tls, struct irc_network *net)
 {
 	char msg[MAX_IRC_MSG+1],
 	     nick[MAX_IRC_NICK+1] = "*";
@@ -145,7 +140,8 @@ void irc_session(struct tls *tls)
 					char username[MAX_SASL_FIELD],
 					     password[MAX_SASL_FIELD];
 					extract_creds(auth, username, password);
-					if (is_login_correct(username, password))
+					if (strcmp(net->local_user, username) == 0 ||
+							strcmp(net->local_pass, password) == 0)
 						irc_printf(tls,
 								":localhost 903 %s :SASL authentication successful\n", nick);
 					else
@@ -196,9 +192,9 @@ int main(int argc, const char **argv)
 		return EXIT_FAILURE;
 	}
 
-	if ((sock = negotiate_listen(net->port)) < 0)
+	if ((sock = negotiate_listen(net->local_port)) < 0)
 	{
-		fprintf(stderr, "Unable to listen on port \"%s\"\n", net->port);
+		fprintf(stderr, "Unable to listen on port \"%s\"\n", net->local_port);
 		return EXIT_FAILURE;
 	}
 
@@ -245,7 +241,7 @@ int main(int argc, const char **argv)
 			continue;
 		}
 
-		irc_session(accepted_tls);
+		irc_session(accepted_tls, net);
 
 		tls_close(accepted_tls);
 		tls_free(accepted_tls);
