@@ -3,6 +3,11 @@
 
 struct irc_network
 {
+	char *local_host;
+	char *local_port;
+	char *local_user;
+	char *local_pass;
+
 	char *host;
 	char *port;
 	char *nick;

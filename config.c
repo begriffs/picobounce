@@ -5,6 +5,8 @@
 
 #include "config.h"
 
+#define ARR_LEN(arr) (sizeof(arr)/sizeof((arr)[0]))
+
 struct irc_network *load_config(const char *path)
 {
 	FILE *f;
@@ -28,8 +30,19 @@ struct irc_network *load_config(const char *path)
 	*net = (struct irc_network){0};
 
 	errno = 0;
-	while (fgets(line, sizeof line, f))
+	while (fgets(line, ARR_LEN(line), f))
 	{
+		const struct { char *name; char **dest; } opts[] =
+		{
+			{"local_host", &net->local_host},
+			{"local_port", &net->local_port},
+			{"local_user", &net->local_user},
+			{"local_pass", &net->local_pass},
+			{"host", &net->host}, {"port", &net->port},
+			{"nick", &net->nick}, {"pass", &net->pass}
+		};
+		size_t i;
+
 		line[strcspn(line, "\n")] = '\0';
 		val = strchr(line, '=');
 		if (!val)
@@ -49,15 +62,13 @@ struct irc_network *load_config(const char *path)
 			return NULL;
 		}
 
-		if (strcmp(line, "host") == 0)
-			net->host = val_copy;
-		else if (strcmp(line, "port") == 0)
-			net->port = val_copy;
-		else if (strcmp(line, "nick") == 0)
-			net->nick = val_copy;
-		else if (strcmp(line, "pass") == 0)
-			net->pass = val_copy;
-		else
+		for (i = 0; i < ARR_LEN(opts); i++)
+			if (strcmp(line, opts[i].name) == 0)
+			{
+				*opts[i].dest = val_copy;
+				break;
+			}
+		if (i == ARR_LEN(opts))
 		{
 			free(val_copy);
 			fprintf(stderr, "Unknown config key: %s\n", line);
