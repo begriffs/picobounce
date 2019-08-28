@@ -92,7 +92,7 @@ static ssize_t irc_printf(struct tls *tls, const char *fmt, ...)
 	return ret;
 }
 
-void irc_session(struct tls *tls, struct irc_network *net)
+void irc_session(struct tls *tls, const char *local_user, const char *local_pass)
 {
 	char msg[MAX_IRC_MSG+1],
 	     nick[MAX_IRC_NICK+1] = "*";
@@ -140,8 +140,8 @@ void irc_session(struct tls *tls, struct irc_network *net)
 					char username[MAX_SASL_FIELD],
 					     password[MAX_SASL_FIELD];
 					extract_creds(auth, username, password);
-					if (strcmp(net->local_user, username) == 0 ||
-							strcmp(net->local_pass, password) == 0)
+					if (strcmp(local_user, username) == 0 ||
+							strcmp(local_pass, password) == 0)
 						irc_printf(tls,
 								":localhost 903 %s :SASL authentication successful\n", nick);
 					else
@@ -158,68 +158,42 @@ void irc_session(struct tls *tls, struct irc_network *net)
 	window_free(w);
 }
 
-static struct tls_config *cfg;
-static struct tls *tls;
-static struct irc_network *net;
-
+/*
 static void cleanup(void)
 {
 	if (tls) tls_free(tls);
 	if (cfg) tls_config_free(cfg);
 	if (net) free(net);
 }
+*/
 
-/* see
- * https://github.com/bob-beck/libtls/blob/master/TUTORIAL.md#basic-libtls-use
- * and
- * https://github.com/OSUSecLab/Stacco/blob/b4a598c3061537f630526a07545e276cccf298cb/test/libressl/server.c
- */
-int main(int argc, const char **argv)
+void handle_client(int sock, const char *local_user, const char *local_pass)
 {
-	int sock;
-
-	if (argc != 2)
-	{
-		fprintf(stderr, "Usage: %s path-to-config\n", *argv);
-		return EXIT_FAILURE;
-	}
-
-	atexit(cleanup);
-
-	if (!(net = load_config(argv[1])))
-	{
-		fprintf(stderr, "Failed to load config from \"%s\"\n", argv[1]);
-		return EXIT_FAILURE;
-	}
-
-	if ((sock = negotiate_listen(net->local_port)) < 0)
-	{
-		fprintf(stderr, "Unable to listen on port \"%s\"\n", net->local_port);
-		return EXIT_FAILURE;
-	}
+	struct tls_config *cfg;
+	struct tls *tls;
 
 	if ((cfg = tls_config_new()) == NULL)
 	{
 		fputs("tls_config_new() failed\n", stderr);
-		return EXIT_FAILURE;
+		exit(EXIT_FAILURE);
 	}
 
 	if (tls_config_set_keypair_file(cfg, "my.crt", "my.key") < 0)
 	{
 		fprintf(stderr, "tls_config_set_keypair_file(): %s\n",
 				tls_config_error(cfg));
-		return EXIT_FAILURE;
+		exit(EXIT_FAILURE);
 	}
 
 	if ((tls = tls_server()) == NULL)
 	{
 		fputs("tls_server() failed\n", stderr);
-		return EXIT_FAILURE;
+		exit(EXIT_FAILURE);
 	}
 
 	if (tls_configure(tls, cfg) < 0) {
 		fprintf(stderr, "tls_configure(): %s\n", tls_error(tls));
-		return EXIT_FAILURE;
+		exit(EXIT_FAILURE);
 	}
 
 	while (1)
@@ -231,7 +205,7 @@ int main(int argc, const char **argv)
 		if ((accepted = accept(sock, NULL, NULL)) < 0)
 		{
 			perror("accept()");
-			return EXIT_FAILURE;
+			exit(EXIT_FAILURE);
 		}
 		/* TLS handshake */
 		if (tls_accept_socket(tls, &accepted_tls, accepted) < 0)
@@ -241,12 +215,38 @@ int main(int argc, const char **argv)
 			continue;
 		}
 
-		irc_session(accepted_tls, net);
+		irc_session(accepted_tls, local_user, local_pass);
 
 		tls_close(accepted_tls);
 		tls_free(accepted_tls);
 		close(accepted);
 	}
+}
+
+int main(int argc, const char **argv)
+{
+	int sock;
+	struct main_config *cfg;
+
+	if (argc != 2)
+	{
+		fprintf(stderr, "Usage: %s path-to-config\n", *argv);
+		return EXIT_FAILURE;
+	}
+
+	if (!(cfg = load_config(argv[1])))
+	{
+		fprintf(stderr, "Failed to load config from \"%s\"\n", argv[1]);
+		return EXIT_FAILURE;
+	}
+
+	if ((sock = negotiate_listen(cfg->local_port)) < 0)
+	{
+		fprintf(stderr, "Unable to listen on port \"%s\"\n", cfg->local_port);
+		return EXIT_FAILURE;
+	}
+
+	handle_client(sock, cfg->local_user, cfg->local_pass);
 
 	/* should not get here */
 	close(sock);

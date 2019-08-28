@@ -3,7 +3,7 @@
 
 #define MAX_CONFIG_LINE 512
 
-struct irc_network
+struct main_config
 {
 	char local_host[MAX_CONFIG_LINE];
 	char local_port[MAX_CONFIG_LINE];
@@ -16,6 +16,6 @@ struct irc_network
 	char pass[MAX_CONFIG_LINE];
 };
 
-struct irc_network *load_config(const char *path);
+struct main_config *load_config(const char *path);
 
 #endif

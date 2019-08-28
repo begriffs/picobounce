@@ -7,12 +7,12 @@
 
 #define ARR_LEN(arr) (sizeof(arr)/sizeof((arr)[0]))
 
-struct irc_network *load_config(const char *path)
+struct main_config *load_config(const char *path)
 {
 	FILE *f;
 	char *val;
 	char line[MAX_CONFIG_LINE];
-	struct irc_network *net;
+	struct main_config *net;
 
 	errno = 0;
    	if (!(f = fopen(path, "r")))
@@ -27,7 +27,7 @@ struct irc_network *load_config(const char *path)
 		fclose(f);
 		return NULL;
 	}
-	*net = (struct irc_network){0};
+	*net = (struct main_config){0};
 
 	errno = 0;
 	while (fgets(line, ARR_LEN(line), f))
