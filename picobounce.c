@@ -6,6 +6,7 @@
 
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 #include <sys/socket.h>
 
 #include <tls.h>
@@ -158,30 +159,32 @@ void irc_session(struct tls *tls, const char *local_user, const char *local_pass
 	window_free(w);
 }
 
-/*
-static void cleanup(void)
+/* if this fails it calls exit, not pthread_exit because there's
+ * reason to live if you're blocked from ever accepting clients
+ */
+void handle_clients(struct main_config *cfg)
 {
-	if (tls) tls_free(tls);
-	if (cfg) tls_config_free(cfg);
-	if (net) free(net);
-}
-*/
-
-void handle_client(int sock, const char *local_user, const char *local_pass)
-{
-	struct tls_config *cfg;
+	int sock;
+	struct tls_config *tls_cfg;
 	struct tls *tls;
 
-	if ((cfg = tls_config_new()) == NULL)
+	if ((sock = negotiate_listen(cfg->local_port)) < 0)
+	{
+		fprintf(stderr, "Unable to listen on port \"%s\"\n", cfg->local_port);
+		exit(EXIT_FAILURE);
+	}
+
+
+	if ((tls_cfg = tls_config_new()) == NULL)
 	{
 		fputs("tls_config_new() failed\n", stderr);
 		exit(EXIT_FAILURE);
 	}
 
-	if (tls_config_set_keypair_file(cfg, "my.crt", "my.key") < 0)
+	if (tls_config_set_keypair_file(tls_cfg, "my.crt", "my.key") < 0)
 	{
 		fprintf(stderr, "tls_config_set_keypair_file(): %s\n",
-				tls_config_error(cfg));
+				tls_config_error(tls_cfg));
 		exit(EXIT_FAILURE);
 	}
 
@@ -191,7 +194,7 @@ void handle_client(int sock, const char *local_user, const char *local_pass)
 		exit(EXIT_FAILURE);
 	}
 
-	if (tls_configure(tls, cfg) < 0) {
+	if (tls_configure(tls, tls_cfg) < 0) {
 		fprintf(stderr, "tls_configure(): %s\n", tls_error(tls));
 		exit(EXIT_FAILURE);
 	}
@@ -215,18 +218,21 @@ void handle_client(int sock, const char *local_user, const char *local_pass)
 			continue;
 		}
 
-		irc_session(accepted_tls, local_user, local_pass);
+		irc_session(accepted_tls, cfg->local_user, cfg->local_pass);
 
 		tls_close(accepted_tls);
 		tls_free(accepted_tls);
 		close(accepted);
 	}
+
+	/* should not get here */
+	close(sock);
 }
 
 int main(int argc, const char **argv)
 {
-	int sock;
 	struct main_config *cfg;
+	pthread_t client_thread;
 
 	if (argc != 2)
 	{
@@ -240,15 +246,7 @@ int main(int argc, const char **argv)
 		return EXIT_FAILURE;
 	}
 
-	if ((sock = negotiate_listen(cfg->local_port)) < 0)
-	{
-		fprintf(stderr, "Unable to listen on port \"%s\"\n", cfg->local_port);
-		return EXIT_FAILURE;
-	}
+	pthread_create(&client_thread, NULL, (void (*))(void *)&handle_clients, &cfg);
 
-	handle_client(sock, cfg->local_user, cfg->local_pass);
-
-	/* should not get here */
-	close(sock);
 	return EXIT_SUCCESS;
 }
