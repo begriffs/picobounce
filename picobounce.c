@@ -10,6 +10,8 @@
 #include <sys/socket.h>
 
 #include <tls.h>
+#include <libsrsirc/irc_ext.h>
+#include <libsrsirc/util.h>
 
 #include "config.h"
 #include "sasl.h"
@@ -73,7 +75,7 @@ negotiate_listen(const char *svc)
 }
 
 /* wrap tls_write with formatting and error checking */
-static ssize_t irc_printf(struct tls *tls, const char *fmt, ...)
+static ssize_t client_printf(struct tls *tls, const char *fmt, ...)
 {
 	va_list ap;
 	ssize_t ret;
@@ -82,7 +84,7 @@ static ssize_t irc_printf(struct tls *tls, const char *fmt, ...)
 	va_start(ap, fmt);
 
 	if (vsnprintf(out, MAX_IRC_MSG, fmt, ap) > MAX_IRC_MSG)
-		fprintf(stderr, "irc_printf(): message truncated: %s\n", fmt);
+		fprintf(stderr, "client_printf(): message truncated: %s\n", fmt);
 
 	if ((ret = tls_write(tls, out, strlen(out))) < 0)
 		fprintf(stderr, "tls_write(): %s\n", tls_error(tls));
@@ -93,7 +95,7 @@ static ssize_t irc_printf(struct tls *tls, const char *fmt, ...)
 	return ret;
 }
 
-void irc_session(struct tls *tls, const char *local_user, const char *local_pass)
+void client_session(struct tls *tls, const char *local_user, const char *local_pass)
 {
 	char msg[MAX_IRC_MSG+1],
 	     nick[MAX_IRC_NICK+1] = "*";
@@ -123,18 +125,18 @@ void irc_session(struct tls *tls, const char *local_user, const char *local_pass
 			else if (strncmp(line, "CAP REQ :", 9) == 0)
 			{
 				char *cap = line+9;
-				irc_printf(tls, ":localhost CAP %s %s :%s\n",
+				client_printf(tls, ":localhost CAP %s %s :%s\n",
 						nick, strcmp(cap, "sasl") ? "NAK" : "ACK", cap);
 			}
 			else if (strncmp(line, "CAP LS 302", 8) == 0)
-				irc_printf(tls, ":localhost CAP %s LS :sasl\n", nick);
+				client_printf(tls, ":localhost CAP %s LS :sasl\n", nick);
 			else if (strncmp(line, "AUTHENTICATE ", 13) == 0)
 			{
 				char *auth = line+13;
 				if (strcmp(auth, "PLAIN") == 0)
-					irc_printf(tls, "AUTHENTICATE +\n");
+					client_printf(tls, "AUTHENTICATE +\n");
 				else if (strcmp(auth, "*") == 0)
-					irc_printf(tls,
+					client_printf(tls,
 							":localhost 906 %s :SASL authentication aborted\n", nick);
 				else
 				{
@@ -143,10 +145,10 @@ void irc_session(struct tls *tls, const char *local_user, const char *local_pass
 					extract_creds(auth, username, password);
 					if (strcmp(local_user, username) == 0 ||
 							strcmp(local_pass, password) == 0)
-						irc_printf(tls,
+						client_printf(tls,
 								":localhost 903 %s :SASL authentication successful\n", nick);
 					else
-						irc_printf(tls,
+						client_printf(tls,
 								":localhost 904 %s :SASL authentication failed\n", nick);
 				}
 			}
@@ -218,7 +220,7 @@ void handle_clients(struct main_config *cfg)
 			continue;
 		}
 
-		irc_session(accepted_tls, cfg->local_user, cfg->local_pass);
+		client_session(accepted_tls, cfg->local_user, cfg->local_pass);
 
 		tls_close(accepted_tls);
 		tls_free(accepted_tls);
@@ -233,6 +235,7 @@ int main(int argc, const char **argv)
 {
 	struct main_config *cfg;
 	pthread_t client_thread;
+	irc *ictx;
 
 	if (argc != 2)
 	{
@@ -245,6 +248,28 @@ int main(int argc, const char **argv)
 		fprintf(stderr, "Failed to load config from \"%s\"\n", argv[1]);
 		return EXIT_FAILURE;
 	}
+
+	printf("Connecting to %s:%d as %s:%s\n", cfg->host, cfg->port, cfg->nick, cfg->pass);
+	ictx = irc_init();
+	irc_set_server(ictx, cfg->host, cfg->port);
+	irc_set_nick(ictx, cfg->nick);
+	// irc_set_pass(ictx, cfg->pass);
+
+	{
+		char authstr[256];
+		size_t authstrsz = sizeof authstr;
+		lsi_ut_sasl_mkplauth(authstr, &authstrsz, cfg->nick, cfg->pass, true);
+		irc_set_sasl(ictx, "PLAIN", authstr, authstrsz, true);
+	}
+
+	if (!irc_connect(ictx)) {
+		fprintf(stderr, "irc_connect() failed\n");
+		irc_dump(ictx);
+		return EXIT_FAILURE;
+	}
+
+	puts("We did it lads.");
+	irc_dispose(ictx);
 
 	pthread_create(&client_thread, NULL, (void (*))(void *)&handle_clients, &cfg);
 
