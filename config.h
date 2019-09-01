@@ -11,7 +11,7 @@ struct main_config
 	char local_pass[MAX_CONFIG_LINE];
 
 	char host[MAX_CONFIG_LINE];
-	char port[MAX_CONFIG_LINE];
+	uint16_t port;
 	char nick[MAX_CONFIG_LINE];
 	char pass[MAX_CONFIG_LINE];
 };

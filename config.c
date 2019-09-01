@@ -38,8 +38,8 @@ struct main_config *load_config(const char *path)
 			{"local_port", &net->local_port},
 			{"local_user", &net->local_user},
 			{"local_pass", &net->local_pass},
-			{"host", &net->host}, {"port", &net->port},
-			{"nick", &net->nick}, {"pass", &net->pass}
+			{"host", &net->host}, {"nick", &net->nick},
+			{"pass", &net->pass}
 		};
 		size_t i;
 
@@ -61,7 +61,22 @@ struct main_config *load_config(const char *path)
 				break;
 			}
 		if (i == ARR_LEN(opts))
-			fprintf(stderr, "Unknown config key: %s\n", line);
+		{
+			/* odd one out -- all the others are strings */
+			if (strcmp(line, "port") == 0)
+			{
+				char *end;
+				long p = strtol(val, &end, 10);
+				if (*val == '\0' || *end != '\0')
+					fprintf(stderr, "Not a valid port number: \"%s\"\n", val);
+				else if (p < 0 || p >= 65535)
+					fprintf(stderr, "Port number out of range: %ld\n", p);
+				else
+					net->port = p;
+			}
+			else
+				fprintf(stderr, "Unknown config key: %s\n", line);
+		}
 	}
 	if (ferror(f))
 		perror("load_config");
