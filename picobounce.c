@@ -74,6 +74,47 @@ negotiate_listen(const char *svc)
 	return sock;
 }
 
+static int
+tcp_connect(const char *host, const char *svc)
+{
+	int sock, e;
+	struct addrinfo hints = {0}, *addrs, *ap;
+
+	hints.ai_family   = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
+	if ((e = getaddrinfo(host, svc, &hints, &addrs)) != 0)
+	{
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(e));
+		return -1;
+	}
+
+	for (ap = addrs; ap != NULL; ap = ap->ai_next)
+	{
+		sock = socket(ap->ai_family, ap->ai_socktype, ap->ai_protocol);
+		if (sock < 0)
+		{
+			perror("Failed to create client socket");
+			continue;
+		}
+		if (connect(sock, ap->ai_addr, ap->ai_addrlen) < 0)
+		{
+			perror("Failed to connect");
+			close(sock);
+			continue;
+		}
+		break; /* noice */
+	}
+	freeaddrinfo(addrs);
+
+	if (ap == NULL)
+	{
+		fprintf(stderr, "Could not connect\n");
+		return -1;
+	}
+	return sock;
+}
+
 /* wrap tls_write with formatting and error checking */
 static ssize_t client_printf(struct tls *tls, const char *fmt, ...)
 {
