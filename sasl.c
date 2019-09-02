@@ -5,6 +5,7 @@
 #include "sasl.h"
 
 static unsigned char* unbase64( const char* ascii, int len, int *flen );
+static char* base64( const void* binaryData, int len, int *flen );
 
 bool extract_creds(const char *b64, char *user, char *pass)
 {
@@ -29,11 +30,27 @@ bool extract_creds(const char *b64, char *user, char *pass)
 	return i==2;
 }
 
+/* caller must free the return string */
+char *encode_creds(const char *user, const char *pass)
+{
+	size_t len = 2*(strlen(user)+1)+strlen(pass);
+	int tmp;
+	char *plaintext = malloc(len+1), *ret;
+	if (!plaintext)
+		return NULL;
+	sprintf(plaintext, "%s%c%s%c%s", user, '\0', user, '\0', pass);
+	ret = base64(plaintext, len, &tmp);
+	free(plaintext);
+	return ret;
+}
+
 /*
  * The following base64 stuff is from
  * https://github.com/superwills/NibbleAndAHalf
  * Copyright (C) 2013 William Sherif
 */
+
+static const char* b64="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" ;
 
 // maps A=>0,B=>1..
 static const unsigned char unb64[]={
@@ -64,6 +81,59 @@ static const unsigned char unb64[]={
   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //250 
   0,   0,   0,   0,   0,   0, 
 }; // This array has 256 elements
+
+// Converts binary data of length=len to base64 characters.
+// Length of the resultant string is stored in flen
+// (you must pass pointer flen).
+char* base64( const void* binaryData, int len, int *flen )
+{
+  const unsigned char* bin = (const unsigned char*) binaryData ;
+  char* res ;
+  
+  int rc = 0 ; // result counter
+  int byteNo ; // I need this after the loop
+  
+  int modulusLen = len % 3 ;
+  int pad = ((modulusLen&1)<<1) + ((modulusLen&2)>>1) ; // 2 gives 1 and 1 gives 2, but 0 gives 0.
+  
+  *flen = 4*(len + pad)/3 ;
+  res = (char*) malloc( *flen + 1 ) ; // and one for the null
+  if( !res )
+  {
+    puts( "ERROR: base64 could not allocate enough memory." ) ;
+    puts( "I must stop because I could not get enough" ) ;
+    return 0;
+  }
+  
+  for( byteNo = 0 ; byteNo <= len-3 ; byteNo+=3 )
+  {
+    unsigned char BYTE0=bin[byteNo];
+    unsigned char BYTE1=bin[byteNo+1];
+    unsigned char BYTE2=bin[byteNo+2];
+    res[rc++]  = b64[ BYTE0 >> 2 ] ;
+    res[rc++]  = b64[ ((0x3&BYTE0)<<4) + (BYTE1 >> 4) ] ;
+    res[rc++]  = b64[ ((0x0f&BYTE1)<<2) + (BYTE2>>6) ] ;
+    res[rc++]  = b64[ 0x3f&BYTE2 ] ;
+  }
+  
+  if( pad==2 )
+  {
+    res[rc++] = b64[ bin[byteNo] >> 2 ] ;
+    res[rc++] = b64[ (0x3&bin[byteNo])<<4 ] ;
+    res[rc++] = '=';
+    res[rc++] = '=';
+  }
+  else if( pad==1 )
+  {
+    res[rc++]  = b64[ bin[byteNo] >> 2 ] ;
+    res[rc++]  = b64[ ((0x3&bin[byteNo])<<4)   +   (bin[byteNo+1] >> 4) ] ;
+    res[rc++]  = b64[ (0x0f&bin[byteNo+1])<<2 ] ;
+    res[rc++] = '=';
+  }
+  
+  res[rc]=0; // NULL TERMINATOR! ;)
+  return res ;
+}
 
 unsigned char* unbase64( const char* ascii, int len, int *flen )
 {

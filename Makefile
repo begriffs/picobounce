@@ -1,10 +1,7 @@
-LIBS = libsrsirc
-
 OBJS = window.o sasl.o config.o
 
-CFLAGS = -std=c99 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wshadow \
-		 `pkg-config --cflags $(LIBS)`
-LDFLAGS = -ltls `pkg-config --libs $(LIBS)` -pthread
+CFLAGS = -std=c99 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wshadow
+LDFLAGS = -ltls -pthread
 
 .SUFFIXES :
 .SUFFIXES : .o .c

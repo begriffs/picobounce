@@ -7,11 +7,10 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <regex.h>
 #include <sys/socket.h>
 
 #include <tls.h>
-#include <libsrsirc/irc_ext.h>
-#include <libsrsirc/util.h>
 
 #include "config.h"
 #include "sasl.h"
@@ -74,49 +73,7 @@ negotiate_listen(const char *svc)
 	return sock;
 }
 
-static int
-tcp_connect(const char *host, const char *svc)
-{
-	int sock, e;
-	struct addrinfo hints = {0}, *addrs, *ap;
-
-	hints.ai_family   = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
-	if ((e = getaddrinfo(host, svc, &hints, &addrs)) != 0)
-	{
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(e));
-		return -1;
-	}
-
-	for (ap = addrs; ap != NULL; ap = ap->ai_next)
-	{
-		sock = socket(ap->ai_family, ap->ai_socktype, ap->ai_protocol);
-		if (sock < 0)
-		{
-			perror("Failed to create client socket");
-			continue;
-		}
-		if (connect(sock, ap->ai_addr, ap->ai_addrlen) < 0)
-		{
-			perror("Failed to connect");
-			close(sock);
-			continue;
-		}
-		break; /* noice */
-	}
-	freeaddrinfo(addrs);
-
-	if (ap == NULL)
-	{
-		fprintf(stderr, "Could not connect\n");
-		return -1;
-	}
-	return sock;
-}
-
-/* wrap tls_write with formatting and error checking */
-static ssize_t client_printf(struct tls *tls, const char *fmt, ...)
+static ssize_t tls_printf(struct tls *tls, const char *fmt, ...)
 {
 	va_list ap;
 	ssize_t ret;
@@ -125,7 +82,7 @@ static ssize_t client_printf(struct tls *tls, const char *fmt, ...)
 	va_start(ap, fmt);
 
 	if (vsnprintf(out, MAX_IRC_MSG, fmt, ap) > MAX_IRC_MSG)
-		fprintf(stderr, "client_printf(): message truncated: %s\n", fmt);
+		fprintf(stderr, "tls_printf(): message truncated: %s\n", fmt);
 
 	if ((ret = tls_write(tls, out, strlen(out))) < 0)
 		fprintf(stderr, "tls_write(): %s\n", tls_error(tls));
@@ -166,18 +123,18 @@ void client_session(struct tls *tls, const char *local_user, const char *local_p
 			else if (strncmp(line, "CAP REQ :", 9) == 0)
 			{
 				char *cap = line+9;
-				client_printf(tls, ":localhost CAP %s %s :%s\n",
+				tls_printf(tls, ":localhost CAP %s %s :%s\n",
 						nick, strcmp(cap, "sasl") ? "NAK" : "ACK", cap);
 			}
 			else if (strncmp(line, "CAP LS 302", 8) == 0)
-				client_printf(tls, ":localhost CAP %s LS :sasl\n", nick);
+				tls_printf(tls, ":localhost CAP %s LS :sasl\n", nick);
 			else if (strncmp(line, "AUTHENTICATE ", 13) == 0)
 			{
 				char *auth = line+13;
 				if (strcmp(auth, "PLAIN") == 0)
-					client_printf(tls, "AUTHENTICATE +\n");
+					tls_printf(tls, "AUTHENTICATE +\n");
 				else if (strcmp(auth, "*") == 0)
-					client_printf(tls,
+					tls_printf(tls,
 							":localhost 906 %s :SASL authentication aborted\n", nick);
 				else
 				{
@@ -186,10 +143,10 @@ void client_session(struct tls *tls, const char *local_user, const char *local_p
 					extract_creds(auth, username, password);
 					if (strcmp(local_user, username) == 0 ||
 							strcmp(local_pass, password) == 0)
-						client_printf(tls,
+						tls_printf(tls,
 								":localhost 903 %s :SASL authentication successful\n", nick);
 					else
-						client_printf(tls,
+						tls_printf(tls,
 								":localhost 904 %s :SASL authentication failed\n", nick);
 				}
 			}
@@ -203,7 +160,7 @@ void client_session(struct tls *tls, const char *local_user, const char *local_p
 }
 
 /* if this fails it calls exit, not pthread_exit because there's
- * reason to live if you're blocked from ever accepting clients
+ * no reason to live if you're blocked from ever accepting clients
  */
 void handle_clients(struct main_config *cfg)
 {
@@ -272,11 +229,72 @@ void handle_clients(struct main_config *cfg)
 	close(sock);
 }
 
+bool irc_sasl_auth(struct tls *tls, const char *user, const char *pass)
+{
+	regex_t sasl_supported, sasl_unsupported, sasl_ok, sasl_bad;
+	bool authed = false;
+	char msg[MAX_IRC_MSG+1];
+	ssize_t amt_read;
+	window *w;
+
+	if(regcomp(&sasl_supported, " ACK :sasl", 0) != 0 ||
+	   regcomp(&sasl_unsupported, " NACK :sasl", 0) != 0 ||
+	   regcomp(&sasl_ok, "^:([^\\s])+ 903 ", REG_EXTENDED) != 0 ||
+	   regcomp(&sasl_bad, "^:([^\\s])+ 904 ", REG_EXTENDED) != 0)
+	{
+		fputs("Failed to compile regex\n", stderr);
+		return false;
+	}
+
+	if (!(w = window_alloc(MAX_IRC_MSG)))
+	{
+		fputs("Failed to allocate irc message buffer\n", stderr);
+		return false;
+	}
+
+	tls_printf(tls, "CAP REQ :sasl\n");
+	tls_printf(tls, "NICK %s\n", user);
+
+	while ((amt_read = tls_read(tls, msg, MAX_IRC_MSG)) > 0)
+	{
+		char *line;
+
+		msg[amt_read] = '\0';
+		window_fill(w, msg);
+		while ((line = window_next(w)) != NULL)
+		{
+			printf("s> %s\n", line);
+			if (regexec(&sasl_supported, line, 0, NULL, 0) == 0)
+				tls_printf(tls, "AUTHENTICATE PLAIN\n");
+			else if (regexec(&sasl_unsupported, line, 0, NULL, 0) == 0)
+				goto irc_sasl_auth_done;
+			else if (strcmp(line, "AUTHENTICATE +") == 0)
+				tls_printf(tls, "AUTHENTICATE %s\n", encode_creds(user, pass));
+			else if (regexec(&sasl_ok, line, 0, NULL, 0) == 0)
+			{
+				authed = true;
+				goto irc_sasl_auth_done;
+			}
+			else if (regexec(&sasl_bad, line, 0, NULL, 0) == 0)
+				goto irc_sasl_auth_done;
+		}
+	}
+
+irc_sasl_auth_done:
+
+	regfree(&sasl_supported);
+	regfree(&sasl_unsupported);
+	regfree(&sasl_ok);
+	regfree(&sasl_bad);
+	window_free(w);
+	return authed;
+}
+
 int main(int argc, const char **argv)
 {
 	struct main_config *cfg;
 	pthread_t client_thread;
-	irc *ictx;
+	struct tls *tls;
 
 	if (argc != 2)
 	{
@@ -290,29 +308,32 @@ int main(int argc, const char **argv)
 		return EXIT_FAILURE;
 	}
 
-	printf("Connecting to %s:%d as %s:%s\n", cfg->host, cfg->port, cfg->nick, cfg->pass);
-	ictx = irc_init();
-	irc_set_server(ictx, cfg->host, cfg->port);
-	irc_set_nick(ictx, cfg->nick);
-	// irc_set_pass(ictx, cfg->pass);
+	printf("Connecting to %s:%s as %s\n", cfg->host, cfg->port, cfg->nick);
 
+	if (!(tls = tls_client()))
 	{
-		char authstr[256];
-		size_t authstrsz = sizeof authstr;
-		lsi_ut_sasl_mkplauth(authstr, &authstrsz, cfg->nick, cfg->pass, true);
-		irc_set_sasl(ictx, "PLAIN", authstr, authstrsz, true);
+		fputs("Failed to obtain TLS client\n", stderr);
+		return EXIT_FAILURE;
 	}
-
-	if (!irc_connect(ictx)) {
-		fprintf(stderr, "irc_connect() failed\n");
-		irc_dump(ictx);
+	if (tls_connect(tls, cfg->host, cfg->port) != 0)
+	{
+		fprintf(stderr, "tls_connect(): %s\n", tls_error(tls));
+		tls_free(tls);
+		return EXIT_FAILURE;
+	}
+	if (!irc_sasl_auth(tls, cfg->nick, cfg->pass))
+	{
+		fputs("Server authentication failed\n", stderr);
+		tls_close(tls);
+		tls_free(tls);
 		return EXIT_FAILURE;
 	}
 
 	puts("We did it lads.");
-	irc_dispose(ictx);
 
 	pthread_create(&client_thread, NULL, (void (*))(void *)&handle_clients, &cfg);
 
+	tls_close(tls);
+	tls_free(tls);
 	return EXIT_SUCCESS;
 }
