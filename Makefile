@@ -1,4 +1,4 @@
-OBJS = window.o sasl.o config.o
+OBJS = window.o sasl.o config.o messages.o
 
 CFLAGS = -std=c99 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wshadow
 LDFLAGS = -ltls -pthread
@@ -7,7 +7,9 @@ LDFLAGS = -ltls -pthread
 .SUFFIXES : .o .c
 
 picobounce : picobounce.c $(OBJS)
-	cc $(CFLAGS) -o picobounce picobounce.c $(OBJS) $(LDFLAGS)
+	cc $(CFLAGS) -o $@ picobounce.c $(OBJS) $(LDFLAGS)
+
+messages.o : messages.c messages.h
 
 window.o : window.c window.h
 

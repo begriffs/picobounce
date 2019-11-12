@@ -15,10 +15,9 @@
 #include "config.h"
 #include "sasl.h"
 #include "window.h"
+#include "messages.h"
 
 #define TCP_BACKLOG  SOMAXCONN
-#define MAX_IRC_MSG  512
-#define MAX_IRC_NICK 9
 
 /* adapted from
  * http://pubs.opengroup.org/onlinepubs/9699919799/functions/getaddrinfo.html
