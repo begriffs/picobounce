@@ -331,7 +331,7 @@ int main(int argc, const char **argv)
 
 	puts("We did it lads.");
 
-	pthread_create(&client_thread, NULL, (void (*))(void *)&handle_clients, &cfg);
+	pthread_create(&client_thread, NULL, (void (*))(void *)&handle_clients, cfg);
 
 	tls_close(tls);
 	tls_free(tls);
