@@ -2,9 +2,7 @@
 #define MESSAGES_H
 
 #include <pthread.h>
-
-#define MAX_IRC_MSG  512
-#define MAX_IRC_NICK 9
+#include "irc.h"
 
 struct msg
 {

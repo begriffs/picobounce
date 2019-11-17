@@ -1,4 +1,4 @@
-OBJS = window.o sasl.o config.o messages.o
+OBJS = client.o config.o irc.o messages.o upstream.o window.o
 
 CFLAGS = -std=c99 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wshadow
 LDFLAGS = -ltls -pthread
@@ -9,13 +9,12 @@ LDFLAGS = -ltls -pthread
 picobounce : picobounce.c $(OBJS)
 	cc $(CFLAGS) -o $@ picobounce.c $(OBJS) $(LDFLAGS)
 
-messages.o : messages.c messages.h
-
-window.o : window.c window.h
-
+client.o : client.c client.h
 config.o : config.c config.h
-
-sasl.o : sasl.c sasl.h
+irc.o : irc.c irc.h
+messages.o : messages.c messages.h
+upstream.o : upstream.c upstream.h
+window.o : window.c window.h
 
 clean :
 	rm picobounce *.o

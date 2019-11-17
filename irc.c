@@ -1,8 +1,9 @@
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "sasl.h"
+#include "irc.h"
 
 static unsigned char* unbase64( const char* ascii, int len, int *flen );
 static char* base64( const void* binaryData, int len, int *flen );
@@ -41,6 +42,26 @@ char *encode_creds(const char *user, const char *pass)
 	sprintf(plaintext, "%s%c%s%c%s", user, '\0', user, '\0', pass);
 	ret = base64(plaintext, len, &tmp);
 	free(plaintext);
+	return ret;
+}
+
+ssize_t tls_printf(struct tls *tls, const char *fmt, ...)
+{
+	va_list ap;
+	ssize_t ret;
+	char out[MAX_IRC_MSG+1];
+
+	va_start(ap, fmt);
+
+	if (vsnprintf(out, MAX_IRC_MSG, fmt, ap) > MAX_IRC_MSG)
+		fprintf(stderr, "tls_printf(): message truncated: %s\n", fmt);
+
+	if ((ret = tls_write(tls, out, strlen(out))) < 0)
+		fprintf(stderr, "tls_write(): %s\n", tls_error(tls));
+
+	printf("<- %s", out);
+
+	va_end(ap);
 	return ret;
 }
 
