@@ -1,5 +1,5 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef PICOBOUNCE_CONFIG_H
+#define PICOBOUNCE_CONFIG_H
 
 #define MAX_CONFIG_LINE 512
 

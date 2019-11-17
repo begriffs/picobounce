@@ -1,5 +1,5 @@
-#ifndef MESSAGES_H
-#define MESSAGES_H
+#ifndef PICOBOUNCE_MESSAGES_H
+#define PICOBOUNCE_MESSAGES_H
 
 #include <pthread.h>
 #include "irc.h"

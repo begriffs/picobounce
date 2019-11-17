@@ -1,5 +1,5 @@
-#ifndef _WINDOW_H
-#define _WINDOW_H
+#ifndef PICOBOUNCE_WINDOW_H
+#define PICOBOUNCE_WINDOW_H
 
 #include <stdbool.h>
 #include <stddef.h>
