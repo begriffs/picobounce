@@ -12,27 +12,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-struct msg_log *g_from_client, *g_to_client;
-
-void *client_write(struct tls *tls)
-{
-	while (1)
-	{
-		struct msg *m = msg_log_consume(g_from_upstream);
-
-		if (tls_write(tls, m->text, strlen(m->text)) < 0)
-		{
-			fprintf(stderr, "Error relaying to client: tls_write(): %s\n",
-					tls_error(tls));
-			/* slight chance this is slightly out of order now, but no worries */
-			msg_log_putback(g_from_upstream, m);
-			/* client probably disconnected, return so that parent
-			 * can respawn us after reconnection */
-			return NULL;
-		}
-	}
-	return NULL;
-}
+struct msg_log *g_from_client;
 
 /* adapted from
  * http://pubs.opengroup.org/onlinepubs/9699919799/functions/getaddrinfo.html
@@ -163,6 +143,26 @@ client_auth(struct tls *tls, const char *local_user, const char *local_pass)
 
 	window_free(w);
 	return authed;
+}
+
+static void *client_write(struct tls *tls)
+{
+	while (1)
+	{
+		struct msg *m = msg_log_consume(g_from_upstream);
+
+		if (tls_write(tls, m->text, strlen(m->text)) < 0)
+		{
+			fprintf(stderr, "Error relaying to client: tls_write(): %s\n",
+					tls_error(tls));
+			/* slight chance this is slightly out of order now, but no worries */
+			msg_log_putback(g_from_upstream, m);
+			/* client probably disconnected, return and parent
+			 * can respawn us after reconnection */
+			return NULL;
+		}
+	}
+	return NULL;
 }
 
 /* if this fails it calls exit, not pthread_exit because there's

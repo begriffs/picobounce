@@ -13,7 +13,7 @@ client.o : client.c client.h messages.h upstream.h window.h
 config.o : config.c config.h
 irc.o : irc.c irc.h
 messages.o : messages.c messages.h
-upstream.o : upstream.c upstream.h window.h
+upstream.o : upstream.c client.h upstream.h window.h
 window.o : window.c window.h
 
 clean :

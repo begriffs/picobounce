@@ -6,7 +6,7 @@
 #include "config.h"
 #include "messages.h"
 
-extern struct msg_log *g_from_client, *g_to_client;
+extern struct msg_log *g_from_client;
 
 void client_read(struct main_config *cfg);
 

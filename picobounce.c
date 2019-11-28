@@ -25,8 +25,8 @@ int main(int argc, const char **argv)
 	}
 
 	g_from_upstream = msg_log_alloc();
-	g_to_upstream = msg_log_alloc();
-	if (!g_from_upstream || !g_to_upstream)
+	g_from_client = msg_log_alloc();
+	if (!g_from_upstream || !g_from_client)
 	{
 		fprintf(stderr, "Unable to allocate message logs\n");
 		return EXIT_FAILURE;

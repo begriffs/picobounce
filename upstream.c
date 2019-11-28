@@ -2,10 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "client.h"
 #include "upstream.h"
 #include "window.h"
 
-struct msg_log *g_from_upstream, *g_to_upstream;
+struct msg_log *g_from_upstream;
 
 static bool
 upstream_auth(struct tls *tls, const char *user, const char *pass)
@@ -69,10 +70,31 @@ irc_sasl_auth_done:
 	return authed;
 }
 
+static void *upstream_write(struct tls *tls)
+{
+	while (1)
+	{
+		struct msg *m = msg_log_consume(g_from_client);
+
+		if (tls_write(tls, m->text, strlen(m->text)) < 0)
+		{
+			fprintf(stderr, "Error relaying to upstream: tls_write(): %s\n",
+					tls_error(tls));
+			/* a chance this is slightly out of order now, but no worries */
+			msg_log_putback(g_from_client, m);
+			/* upstreamclient probably disconnected, return and parent
+			 * can respawn us after reconnection */
+			return NULL;
+		}
+	}
+	return NULL;
+}
+
 void upstream_read(struct main_config *cfg)
 {
 	struct tls *tls;
 	window *w;
+	pthread_t upstream_write_thread;
 	char msg[MAX_IRC_MSG+1];
 	ssize_t amt_read;
 
@@ -106,6 +128,8 @@ void upstream_read(struct main_config *cfg)
 			exit(EXIT_FAILURE);
 		}
 
+		pthread_create(&upstream_write_thread, NULL,
+				(void (*))(void *)&upstream_write, tls);
 		while ((amt_read = tls_read(tls, msg, MAX_IRC_MSG)) > 0)
 		{
 			char *line;
