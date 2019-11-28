@@ -17,7 +17,8 @@ void msg_log_add(struct msg_log *log, struct msg *m)
 {
 	pthread_mutex_lock(&log->mutex);
 	{
-		log->newest->next = m;
+		if (log->newest)
+			log->newest->next = m;
 		log->newest = m;
 		log->count++;
 		pthread_cond_signal(&log->ready);
