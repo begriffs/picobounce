@@ -9,11 +9,11 @@ LDFLAGS = -ltls -pthread
 picobounce : picobounce.c $(OBJS)
 	cc $(CFLAGS) -o $@ picobounce.c $(OBJS) $(LDFLAGS)
 
-client.o : client.c client.h
+client.o : client.c client.h messages.h upstream.h window.h
 config.o : config.c config.h
 irc.o : irc.c irc.h
 messages.o : messages.c messages.h
-upstream.o : upstream.c upstream.h
+upstream.o : upstream.c upstream.h window.h
 window.o : window.c window.h
 
 clean :
