@@ -73,7 +73,6 @@ client_auth(struct tls *tls, const char *local_user, const char *local_pass)
 	     nick[MAX_IRC_NICK+1] = "*";
 	ssize_t amt_read;
 	window *w;
-	bool authed = false;
 
 	if (!(w = window_alloc(MAX_IRC_MSG)))
 	{
@@ -112,7 +111,7 @@ client_auth(struct tls *tls, const char *local_user, const char *local_pass)
 				{
 					tls_printf(tls,
 							":localhost 906 %s :SASL authentication aborted\n", nick);
-					break;
+					/* keep trying I guess */
 				}
 				else
 				{
@@ -124,14 +123,14 @@ client_auth(struct tls *tls, const char *local_user, const char *local_pass)
 					{
 						tls_printf(tls,
 								":localhost 903 %s :SASL authentication successful\n", nick);
-						authed = true;
-						break;
+						window_free(w);
+						return true;
 					}
 					else
 					{
 						tls_printf(tls,
 								":localhost 904 %s :SASL authentication failed\n", nick);
-						break;
+						/* keep trying I guess */
 					}
 				}
 			}
@@ -142,7 +141,7 @@ client_auth(struct tls *tls, const char *local_user, const char *local_pass)
 		fprintf(stderr, "tls_read(): %s\n", tls_error(tls));
 
 	window_free(w);
-	return authed;
+	return false;
 }
 
 static void *client_write(struct tls *tls)
