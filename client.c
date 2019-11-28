@@ -1,4 +1,6 @@
 #include "client.h"
+#include "messages.h"
+#include "upstream.h"
 #include "window.h"
 
 #include <stdio.h>
@@ -12,7 +14,25 @@
 
 struct msg_log *g_from_client, *g_to_client;
 
-void *client_write(void *v);
+void *client_write(struct tls *tls)
+{
+	while (1)
+	{
+		struct msg *m = msg_log_consume(g_from_upstream);
+
+		if (tls_write(tls, m->text, strlen(m->text)) < 0)
+		{
+			fprintf(stderr, "Error relaying to client: tls_write(): %s\n",
+					tls_error(tls));
+			/* slight chance this is slightly out of order now, but no worries */
+			msg_log_putback(g_from_upstream, m);
+			/* client probably disconnected, return so that parent
+			 * can respawn us after reconnection */
+			return NULL;
+		}
+	}
+	return NULL;
+}
 
 /* adapted from
  * http://pubs.opengroup.org/onlinepubs/9699919799/functions/getaddrinfo.html
@@ -208,9 +228,10 @@ void client_read(struct main_config *cfg)
 		if (client_auth(accepted_tls, cfg->local_user, cfg->local_pass))
 		{
 			pthread_create(&client_write_thread, NULL,
-					(void (*))(void *)&client_write, cfg);
+					(void (*))(void *)&client_write, accepted_tls);
 
 		}
+
 		tls_close(accepted_tls);
 		tls_free(accepted_tls);
 		close(accepted);

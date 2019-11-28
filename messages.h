@@ -24,5 +24,6 @@ struct msg_log *msg_log_alloc(void);
 
 void msg_log_add(struct msg_log *log, struct msg *m);
 struct msg *msg_log_consume(struct msg_log *log);
+void msg_log_putback(struct msg_log *log, struct msg *m);
 
 #endif

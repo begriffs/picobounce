@@ -39,3 +39,15 @@ struct msg *msg_log_consume(struct msg_log *log)
 	pthread_mutex_unlock(&log->mutex);
 	return ret;
 }
+
+void msg_log_putback(struct msg_log *log, struct msg *m)
+{
+	pthread_mutex_lock(&log->mutex);
+	{
+		m->next = log->oldest;
+		log->oldest = m;
+		log->count++;
+		pthread_cond_signal(&log->ready);
+	}
+	pthread_mutex_unlock(&log->mutex);
+}
