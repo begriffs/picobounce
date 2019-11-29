@@ -11,6 +11,8 @@ struct msg
 	struct msg *older, *newer;
 };
 
+struct msg *msg_alloc(void);
+
 struct msg_log
 {
 	struct  msg *oldest, *newest;

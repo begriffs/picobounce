@@ -3,6 +3,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+struct msg *msg_alloc(void)
+{
+	struct msg *m = malloc(sizeof *m);
+	if (!m)
+		return NULL;
+	*m = (struct msg){0};
+	return m;
+}
+
 struct msg_log *msg_log_alloc(void)
 {
 	struct msg_log *log = malloc(sizeof *log);

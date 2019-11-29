@@ -139,7 +139,7 @@ void upstream_read(struct main_config *cfg)
 			window_fill(w, msg);
 			while ((line = window_next(w)) != NULL)
 			{
-				if (!(m	= malloc(sizeof(struct msg))))
+				if (!(m	= msg_alloc()))
 				{
 					fputs("Unable to queue message from upstream", stderr);
 					continue;
