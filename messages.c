@@ -36,10 +36,9 @@ void msg_log_add(struct msg_log *log, struct msg *m)
 			log->oldest = m;
 
 		log->count++;
-		pthread_cond_signal(&log->ready);
+		pthread_cond_broadcast(&log->ready);
 	}
 	pthread_mutex_unlock(&log->mutex);
-	printf("+");
 }
 
 struct msg *msg_log_consume(struct msg_log *log)
@@ -72,7 +71,7 @@ void msg_log_putback(struct msg_log *log, struct msg *m)
 			log->newest = m;
 
 		log->count++;
-		pthread_cond_signal(&log->ready);
+		pthread_cond_broadcast(&log->ready);
 	}
 	pthread_mutex_unlock(&log->mutex);
 }
