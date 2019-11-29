@@ -75,8 +75,9 @@ static void *upstream_write(struct tls *tls)
 	while (1)
 	{
 		struct msg *m = msg_log_consume(g_from_client);
+		strcat(m->text, "\n");
 
-		if (tls_write(tls, m->text, strlen(m->text)) < 0)
+		if (!tls_error(tls) && tls_write(tls, m->text, strlen(m->text)) < 0)
 		{
 			fprintf(stderr, "Error relaying to upstream: tls_write(): %s\n",
 					tls_error(tls));
