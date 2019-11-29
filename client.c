@@ -255,6 +255,7 @@ void client_read(struct main_config *cfg)
 					}
 					m->at = time(NULL);
 					strcpy(m->text, line);
+					printf("-> %s\n", line);
 					msg_log_add(g_from_client, m);
 				}
 			}

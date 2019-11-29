@@ -54,7 +54,6 @@ struct msg *msg_log_consume(struct msg_log *log)
 		log->count--;
 	}
 	pthread_mutex_unlock(&log->mutex);
-	printf("-");
 	return ret;
 }
 

@@ -128,6 +128,7 @@ void upstream_read(struct main_config *cfg)
 			tls_free(tls);
 			exit(EXIT_FAILURE);
 		}
+		printf("Authenticated with %s\n", cfg->host);
 
 		pthread_create(&upstream_write_thread, NULL,
 				(void (*))(void *)&upstream_write, tls);
@@ -147,6 +148,7 @@ void upstream_read(struct main_config *cfg)
 				}
 				m->at = time(NULL);
 				strcpy(m->text, line);
+				printf("s> %s\n", line);
 				msg_log_add(g_from_upstream, m);
 			}
 		}
