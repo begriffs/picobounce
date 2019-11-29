@@ -1,5 +1,6 @@
 #include "messages.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 
 struct msg_log *msg_log_alloc(void)
@@ -17,13 +18,19 @@ void msg_log_add(struct msg_log *log, struct msg *m)
 {
 	pthread_mutex_lock(&log->mutex);
 	{
+		m->older = log->newest;
 		if (log->newest)
-			log->newest->next = m;
+			log->newest->newer = m;
+
 		log->newest = m;
+		if (!log->oldest)
+			log->oldest = m;
+
 		log->count++;
 		pthread_cond_signal(&log->ready);
 	}
 	pthread_mutex_unlock(&log->mutex);
+	printf("+");
 }
 
 struct msg *msg_log_consume(struct msg_log *log)
@@ -33,11 +40,13 @@ struct msg *msg_log_consume(struct msg_log *log)
 	{
 		while (log->count < 1)
 			pthread_cond_wait(&log->ready, &log->mutex);
+
 		ret = log->oldest;
-		log->oldest = log->oldest->next;
+		log->oldest = log->oldest->newer;
 		log->count--;
 	}
 	pthread_mutex_unlock(&log->mutex);
+	printf("-");
 	return ret;
 }
 
@@ -45,8 +54,14 @@ void msg_log_putback(struct msg_log *log, struct msg *m)
 {
 	pthread_mutex_lock(&log->mutex);
 	{
-		m->next = log->oldest;
+		m->newer = log->oldest;
+		if (log->oldest)
+			log->oldest->older = m;
+
 		log->oldest = m;
+		if (!log->newest)
+			log->newest = m;
+
 		log->count++;
 		pthread_cond_signal(&log->ready);
 	}

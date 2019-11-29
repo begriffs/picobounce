@@ -8,7 +8,7 @@ struct msg
 {
 	time_t at;
 	char   text[MAX_IRC_MSG];
-	struct msg *next;
+	struct msg *older, *newer;
 };
 
 struct msg_log
