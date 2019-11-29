@@ -173,6 +173,13 @@ void client_read(struct main_config *cfg)
 	struct tls_config *tls_cfg;
 	struct tls *tls;
 	pthread_t client_write_thread;
+	window *w;
+
+	if (!(w = window_alloc(MAX_IRC_MSG)))
+	{
+		fputs("Failed to allocate irc message buffer\n", stderr);
+		exit(EXIT_FAILURE);
+	}
 
 	if ((sock = negotiate_listen(cfg->local_port)) < 0)
 	{
@@ -209,6 +216,8 @@ void client_read(struct main_config *cfg)
 	{
 		int accepted;
 		struct tls *accepted_tls;
+		char msg[MAX_IRC_MSG+1];
+		ssize_t amt_read;
 
 		/* open socket */
 		if ((accepted = accept(sock, NULL, NULL)) < 0)
@@ -229,6 +238,25 @@ void client_read(struct main_config *cfg)
 			pthread_create(&client_write_thread, NULL,
 					(void (*))(void *)&client_write, accepted_tls);
 
+			while ((amt_read = tls_read(accepted_tls, msg, MAX_IRC_MSG)) > 0)
+			{
+				char *line;
+				struct msg *m;
+
+				msg[amt_read] = '\0';
+				window_fill(w, msg);
+				while ((line = window_next(w)) != NULL)
+				{
+					if (!(m	= malloc(sizeof(struct msg))))
+					{
+						fputs("Unable to queue message from client", stderr);
+						continue;
+					}
+					m->at = time(NULL);
+					strcpy(m->text, line);
+					msg_log_add(g_from_client, m);
+				}
+			}
 		}
 
 		tls_close(accepted_tls);
@@ -237,5 +265,6 @@ void client_read(struct main_config *cfg)
 	}
 
 	/* should not get here */
+	window_free(w);
 	close(sock);
 }
