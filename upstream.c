@@ -34,6 +34,7 @@ upstream_auth(struct tls *tls, const char *user, const char *pass)
 
 	tls_printf(tls, "CAP REQ :sasl\n");
 	tls_printf(tls, "NICK %s\n", user);
+	tls_printf(tls, "USER singleuser localhost localhost :singleuser\n");
 
 	while ((amt_read = tls_read(tls, msg, MAX_IRC_MSG)) > 0)
 	{
