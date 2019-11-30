@@ -248,6 +248,8 @@ void client_read(struct main_config *cfg)
 				window_fill(w, msg);
 				while ((line = window_next(w)) != NULL)
 				{
+					if (strncmp(line, "QUIT ", 5) == 0)
+						continue; /* client may quit, but we don't */
 					if (!(m	= msg_alloc()))
 					{
 						fputs("Unable to queue message from client", stderr);
