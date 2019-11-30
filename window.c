@@ -8,7 +8,7 @@
 
 window *window_alloc(size_t cap)
 {
-	window *ret = malloc(sizeof(window));
+	window *ret = malloc(sizeof *ret);
 	if (!ret)
 		return NULL;
 	ret->reader = ret->buf = calloc(1, 2*cap + 1);
