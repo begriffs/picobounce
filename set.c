@@ -31,7 +31,7 @@ djb2hash(const unsigned char *str)
 static struct bucket *set_lookup(set s, char *key)
 {
 	struct bucket* np;
-	for (np = s[djb2hash(key)]; np; np = np->next)
+	for (np = s[djb2hash(key) % HASHSZ]; np; np = np->next)
 		if (strcmp(key, np->key) == 0)
 			return np;
 	return NULL;
@@ -52,7 +52,7 @@ bool set_add(set s, char *key)
 		np = malloc(sizeof(*np));
 		if (np == NULL || (np->key = strdup(key)) == NULL)
 			return false;
-		h = djb2hash(key);
+		h = djb2hash(key) % HASHSZ;
 		np->next = s[h];
 		s[h] = np;
 	}
@@ -62,7 +62,7 @@ bool set_add(set s, char *key)
 void set_rm(set s, char *key)
 {
 	struct bucket *np, *prev;
-	unsigned long h = djb2hash(key);
+	unsigned long h = djb2hash(key) % HASHSZ;
 	if ((np = s[h]) == NULL)
 		return;
 	for (prev = NULL; np; np = np->next, prev = np)
