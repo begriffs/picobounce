@@ -8,12 +8,29 @@
 set set_alloc(void)
 {
 	set s = malloc(HASHSZ * (sizeof *s));
-	size_t i;
 	if (!s)
 		return NULL;
-	for (i = 0; i < HASHSZ; i++)
-		s[i] = NULL;
+	set_empty(s);
 	return s;
+}
+
+void set_empty(set s)
+{
+	size_t i;
+	struct bucket *cur, *next;
+
+	for (i = 0; i < HASHSZ; i++)
+	{
+		cur = s[i];
+		while (cur)
+		{
+			next = cur->next;
+			free(cur->key);
+			free(cur);
+			cur = next;
+		}
+		s[i] = NULL;
+	}
 }
 
 static unsigned long

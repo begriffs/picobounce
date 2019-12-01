@@ -13,6 +13,12 @@ typedef struct bucket **set;
 
 set set_alloc(void);
 
+/* removes all items
+ *
+ * be sure to call before free(s) to free internals
+ */
+void set_empty(set s);
+
 bool set_contains(set s, char *key);
 
 bool set_add(set s, char *key);
