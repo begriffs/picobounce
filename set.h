@@ -3,10 +3,20 @@
 
 #include <stdbool.h>
 
-bool set_contains(char *key);
+struct bucket
+{
+	struct bucket *next;
+	char *key;
+};
 
-bool set_add(char *key);
+typedef struct bucket **set;
 
-void set_rm(char *key);
+set set_alloc(void);
+
+bool set_contains(set s, char *key);
+
+bool set_add(set s, char *key);
+
+void set_rm(set s, char *key);
 
 #endif
