@@ -1,20 +1,20 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "set.h"
+#include "set_ptr.h"
 
 #define HASHSZ 101
 
-set set_alloc(void)
+set_ptr set_alloc(void)
 {
-	set s = malloc(HASHSZ * (sizeof *s));
+	set_ptr s = malloc(HASHSZ * (sizeof *s));
 	if (!s)
 		return NULL;
 	set_empty(s);
 	return s;
 }
 
-void set_empty(set s)
+void set_empty(set_ptr s)
 {
 	size_t i;
 	struct bucket *cur, *next;
@@ -45,7 +45,7 @@ djb2hash(const unsigned char *str)
 	return hash;
 }
 
-static struct bucket *set_lookup(set s, char *key)
+static struct bucket *set_lookup(set_ptr s, char *key)
 {
 	struct bucket* np;
 	for (np = s[djb2hash(key) % HASHSZ]; np; np = np->next)
@@ -54,12 +54,12 @@ static struct bucket *set_lookup(set s, char *key)
 	return NULL;
 }
 
-bool set_contains(set s, char *key)
+bool set_contains(set_ptr s, char *key)
 {
 	return set_lookup(s, key) != NULL;
 }
 
-bool set_add(set s, char *key)
+bool set_add(set_ptr s, char *key)
 {
 	struct bucket *np;
 	unsigned long h;
@@ -76,7 +76,7 @@ bool set_add(set s, char *key)
 	return true;
 }
 
-void set_rm(set s, char *key)
+void set_rm(set_ptr s, char *key)
 {
 	struct bucket *np, *prev;
 	unsigned long h = djb2hash(key) % HASHSZ;
