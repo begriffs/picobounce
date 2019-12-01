@@ -1,27 +1,34 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "set_ptr.h"
+#include "set.h"
 
 #define HASHSZ 101
 
-set_ptr set_alloc(void)
+set *set_alloc(void)
 {
-	set_ptr s = malloc(HASHSZ * (sizeof *s));
+	set *s = malloc(sizeof *s);
 	if (!s)
 		return NULL;
+	s->sz = HASHSZ;
+	s->hashtab = malloc(s->sz * (sizeof *s->hashtab));
+	if (!s->hashtab)
+	{
+		free(s);
+		return NULL;
+	}
 	set_empty(s);
 	return s;
 }
 
-void set_empty(set_ptr s)
+void set_empty(set *s)
 {
 	size_t i;
 	struct bucket *cur, *next;
 
-	for (i = 0; i < HASHSZ; i++)
+	for (i = 0; i < s->sz; i++)
 	{
-		cur = s[i];
+		cur = s->hashtab[i];
 		while (cur)
 		{
 			next = cur->next;
@@ -29,7 +36,7 @@ void set_empty(set_ptr s)
 			free(cur);
 			cur = next;
 		}
-		s[i] = NULL;
+		s->hashtab[i] = NULL;
 	}
 }
 
@@ -45,21 +52,21 @@ djb2hash(const unsigned char *str)
 	return hash;
 }
 
-static struct bucket *set_lookup(set_ptr s, char *key)
+static struct bucket *set_lookup(set *s, char *key)
 {
 	struct bucket* np;
-	for (np = s[djb2hash(key) % HASHSZ]; np; np = np->next)
+	for (np = s->hashtab[djb2hash(key) % s->sz]; np; np = np->next)
 		if (strcmp(key, np->key) == 0)
 			return np;
 	return NULL;
 }
 
-bool set_contains(set_ptr s, char *key)
+bool set_contains(set *s, char *key)
 {
 	return set_lookup(s, key) != NULL;
 }
 
-bool set_add(set_ptr s, char *key)
+bool set_add(set *s, char *key)
 {
 	struct bucket *np;
 	unsigned long h;
@@ -69,25 +76,25 @@ bool set_add(set_ptr s, char *key)
 		np = malloc(sizeof(*np));
 		if (np == NULL || (np->key = strdup(key)) == NULL)
 			return false;
-		h = djb2hash(key) % HASHSZ;
-		np->next = s[h];
-		s[h] = np;
+		h = djb2hash(key) % s->sz;
+		np->next = s->hashtab[h];
+		s->hashtab[h] = np;
 	}
 	return true;
 }
 
-void set_rm(set_ptr s, char *key)
+void set_rm(set *s, char *key)
 {
 	struct bucket *np, *prev;
-	unsigned long h = djb2hash(key) % HASHSZ;
-	if ((np = s[h]) == NULL)
+	unsigned long h = djb2hash(key) % s->sz;
+	if ((np = s->hashtab[h]) == NULL)
 		return;
 	for (prev = NULL; np; np = np->next, prev = np)
 	{
 		if (strcmp(key, np->key) == 0)
 		{
 			if (prev == NULL)
-				s[h] = np->next;
+				s->hashtab[h] = np->next;
 			else
 				prev->next = np->next;
 			free(np->key);

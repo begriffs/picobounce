@@ -9,20 +9,24 @@ struct bucket
 	char *key;
 };
 
-typedef struct bucket **set_ptr;
+typedef struct
+{
+	size_t sz;
+	struct bucket **hashtab;
+} set;
 
-set_ptr set_alloc(void);
+set *set_alloc(void);
 
 /* removes all items
  *
  * be sure to call before free(s) to free internals
  */
-void set_empty(set_ptr s);
+void set_empty(set *s);
 
-bool set_contains(set_ptr s, char *key);
+bool set_contains(set *s, char *key);
 
-bool set_add(set_ptr s, char *key);
+bool set_add(set *s, char *key);
 
-void set_rm(set_ptr s, char *key);
+void set_rm(set *s, char *key);
 
 #endif
