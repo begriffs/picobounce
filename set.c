@@ -1,17 +1,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "dict.h"
+#include "set.h"
 
-struct dict
+struct bucket
 {
-	struct dict *next;
+	struct bucket *next;
 	char *key;
 };
 
 #define HASHSZ 101
 
-static struct dict *hashtab[HASHSZ];
+static struct bucket *hashtab[HASHSZ];
 
 static unsigned hash(char *s)
 {
@@ -22,26 +22,26 @@ static unsigned hash(char *s)
 	return hashval % HASHSZ;
 }
 
-static struct dict *dict_lookup(char *key)
+static struct bucket *set_lookup(char *key)
 {
-	struct dict* np;
+	struct bucket* np;
 	for (np = hashtab[hash(key)]; np; np = np->next)
 		if (strcmp(key, np->key) == 0)
 			return np;
 	return NULL;
 }
 
-bool dict_contains(char *key)
+bool set_contains(char *key)
 {
-	return dict_lookup(key) != NULL;
+	return set_lookup(key) != NULL;
 }
 
-bool dict_add(char *key)
+bool set_add(char *key)
 {
-	struct dict *np;
+	struct bucket *np;
 	unsigned h;
 
-	if ((np = dict_lookup(key)) == NULL)
+	if ((np = set_lookup(key)) == NULL)
 	{
 		np = malloc(sizeof(*np));
 		if (np == NULL || (np->key = strdup(key)) == NULL)
@@ -53,9 +53,9 @@ bool dict_add(char *key)
 	return true;
 }
 
-void dict_rm(char *key)
+void set_rm(char *key)
 {
-	struct dict *np, *prev;
+	struct bucket *np, *prev;
 	unsigned h = hash(key);
 	if ((np = hashtab[h]) == NULL)
 		return;
