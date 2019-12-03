@@ -4,8 +4,7 @@
 #include <pthread.h>
 
 #include "config.h"
-#include "upstream.h"
-#include "client.h"
+#include "transfer.h"
 
 int main(int argc, const char **argv)
 {

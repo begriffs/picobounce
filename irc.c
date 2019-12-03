@@ -3,7 +3,15 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 #include "irc.h"
+#include "window.h"
+
+#define TCP_BACKLOG 1
 
 static unsigned char* unbase64( const char* ascii, int len, int *flen );
 static char* base64( const void* binaryData, int len, int *flen );
@@ -63,6 +71,136 @@ ssize_t tls_printf(struct tls *tls, const char *fmt, ...)
 
 	va_end(ap);
 	return ret;
+}
+
+/* adapted from
+ * http://pubs.opengroup.org/onlinepubs/9699919799/functions/getaddrinfo.html
+ *
+ * svc: either a name like "ftp" or a port number as string
+ *
+ * Returns: socket file desciptor, or negative error value
+ */
+int negotiate_listen(const char *svc)
+{
+	int sock, e, reuseaddr=1;
+	struct addrinfo hints = {0}, *addrs, *ap;
+
+	hints.ai_family   = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags    = AI_PASSIVE;
+	hints.ai_protocol = IPPROTO_TCP;
+	if ((e = getaddrinfo(NULL, svc, &hints, &addrs)) != 0)
+	{
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(e));
+		return -1;
+	}
+
+	for (ap = addrs; ap != NULL; ap = ap->ai_next)
+	{
+		sock = socket(ap->ai_family, ap->ai_socktype, ap->ai_protocol);
+		if (sock < 0)
+			continue;
+		if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+		               &reuseaddr,sizeof(reuseaddr)) < 0)
+			perror("setsockopt(REUSEADDR)");
+		if (bind(sock, ap->ai_addr, ap->ai_addrlen) == 0)
+			break; /* noice */
+		perror("Failed to bind");
+		close(sock);
+	}
+	freeaddrinfo(addrs);
+
+	if (ap == NULL)
+	{
+		fprintf(stderr, "Could not bind\n");
+		return -1;
+	}
+	if (listen(sock, TCP_BACKLOG) < 0)
+	{
+		perror("listen()");
+		close(sock);
+		return -1;
+	}
+
+	return sock;
+}
+
+bool
+client_auth(struct tls *tls, const char *local_user, const char *local_pass)
+{
+	char msg[MAX_IRC_MSG+1],
+	     nick[MAX_IRC_NICK+1] = "*";
+	ssize_t amt_read;
+	window *w;
+
+	if (!(w = window_alloc(MAX_IRC_MSG)))
+	{
+		fputs("Failed to allocate irc message buffer\n", stderr);
+		return false;
+	}
+
+	while ((amt_read = tls_read(tls, msg, MAX_IRC_MSG)) > 0)
+	{
+		char *line;
+
+		msg[amt_read] = '\0';
+		window_fill(w, msg);
+		while ((line = window_next(w)) != NULL)
+		{
+			printf("-> %s\n", line);
+			if (strncmp(line, "NICK ", 5) == 0)
+			{
+				snprintf(nick, MAX_IRC_NICK, "%s", line+5);
+				printf("!! Nick is now %s\n", nick);
+			}
+			else if (strncmp(line, "CAP REQ :", 9) == 0)
+			{
+				char *cap = line+9;
+				tls_printf(tls, ":localhost CAP %s %s :%s\n",
+						nick, strcmp(cap, "sasl") ? "NAK" : "ACK", cap);
+			}
+			else if (strncmp(line, "CAP LS 302", 8) == 0)
+				tls_printf(tls, ":localhost CAP %s LS :sasl\n", nick);
+			else if (strncmp(line, "AUTHENTICATE ", 13) == 0)
+			{
+				char *auth = line+13;
+				if (strcmp(auth, "PLAIN") == 0)
+					tls_printf(tls, "AUTHENTICATE +\n");
+				else if (strcmp(auth, "*") == 0)
+				{
+					tls_printf(tls,
+							":localhost 906 %s :SASL authentication aborted\n", nick);
+					/* keep trying I guess */
+				}
+				else
+				{
+					char username[MAX_SASL_FIELD],
+					     password[MAX_SASL_FIELD];
+					extract_creds(auth, username, password);
+					if (strcmp(local_user, username) == 0 ||
+							strcmp(local_pass, password) == 0)
+					{
+						tls_printf(tls,
+								":localhost 903 %s :SASL authentication successful\n", nick);
+						window_free(w);
+						return true;
+					}
+					else
+					{
+						tls_printf(tls,
+								":localhost 904 %s :SASL authentication failed\n", nick);
+						/* keep trying I guess */
+					}
+				}
+			}
+		}
+	}
+
+	if (amt_read < 0)
+		fprintf(stderr, "tls_read(): %s\n", tls_error(tls));
+
+	window_free(w);
+	return false;
 }
 
 /*
