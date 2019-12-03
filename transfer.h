@@ -1,8 +1,6 @@
 #ifndef PICOBOUNCE_UPSTREAM_H
 #define PICOBOUNCE_UPSTREAM_H
 
-#include <regex.h>
-
 #include "config.h"
 #include "messages.h"
 

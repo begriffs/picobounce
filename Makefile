@@ -11,9 +11,9 @@ picobounce : picobounce.c $(OBJS)
 
 config.o : config.c config.h
 set.o : set.c set.h
-irc.o : irc.c irc.h
-messages.o : messages.c messages.h
-transfer.o : transfer.c transfer.h window.h
+irc.o : irc.c irc.h window.h
+messages.o : messages.c messages.h irc.h window.h
+transfer.o : transfer.c transfer.h config.h irc.h messages.h set.h window.h
 window.o : window.c window.h
 
 clean :

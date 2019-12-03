@@ -4,6 +4,7 @@
 
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <regex.h>
 #include <sys/socket.h>
 #include <unistd.h>
 

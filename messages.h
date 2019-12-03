@@ -2,6 +2,7 @@
 #define PICOBOUNCE_MESSAGES_H
 
 #include <pthread.h>
+
 #include "irc.h"
 
 struct msg
