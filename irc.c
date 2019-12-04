@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -13,8 +14,10 @@
 
 #define TCP_BACKLOG 1
 
-static unsigned char* unbase64( const char* ascii, int len, int *flen );
-static char* base64( const void* binaryData, int len, int *flen );
+static int b64_enc_len(int srclen);
+static int b64_dec_len(int srclen);
+static int b64_encode(const char *src, int len, char *dst, int dstlen);
+static int b64_decode(const char *src, int len, char *dst, int dstlen);
 
 bool extract_creds(const char *b64, char *user, char *pass)
 {
@@ -23,11 +26,15 @@ bool extract_creds(const char *b64, char *user, char *pass)
 	char *decoded, *s;
 	int i, n;
 
-	/* assumption: all ascii */
-	decoded = (char *)unbase64(b64, strlen(b64), &n);
+	n = b64_dec_len(strlen(b64)) + 1;
+	decoded = calloc(1, n);
 
-	if (!decoded)
+	if (!decoded || b64_decode(b64, strlen(b64), decoded, n) < 0)
+	{
+		if (decoded)
+			free(decoded);
 		return false;
+	}
 
 	for (s = decoded, i = 0; i < 3 && s < decoded+n; i++)
 	{
@@ -42,13 +49,25 @@ bool extract_creds(const char *b64, char *user, char *pass)
 /* caller must free the return string */
 char *encode_creds(const char *user, const char *pass)
 {
-	size_t len = 2*(strlen(user)+1)+strlen(pass);
-	int tmp;
+	size_t n, len = 2*(strlen(user)+1)+strlen(pass);
 	char *plaintext = malloc(len+1), *ret;
+
 	if (!plaintext)
 		return NULL;
 	sprintf(plaintext, "%s%c%s%c%s", user, '\0', user, '\0', pass);
-	ret = base64(plaintext, len, &tmp);
+
+	n = b64_enc_len(len) + 1;
+	ret = calloc(1, n);
+
+	if (!ret)
+		goto done;
+	if (b64_encode(plaintext, len, ret, n) < 0)
+	{
+		free(ret);
+		ret = NULL;
+	}
+
+done:
 	free(plaintext);
 	return ret;
 }
@@ -204,150 +223,217 @@ client_auth(struct tls *tls, const char *local_user, const char *local_pass)
 }
 
 /*
- * The following base64 stuff is from
- * https://github.com/superwills/NibbleAndAHalf
- * Copyright (C) 2013 William Sherif
+ ***********************************************
+ * The following base64 stuff is from PostgreSQL
+ ***********************************************
 */
 
-static const char* b64="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" ;
+static const char _base64[] =
+"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-// maps A=>0,B=>1..
-static const unsigned char unb64[]={
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //10 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //20 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //30 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //40 
-  0,   0,   0,  62,   0,   0,   0,  63,  52,  53, //50 
- 54,  55,  56,  57,  58,  59,  60,  61,   0,   0, //60 
-  0,   0,   0,   0,   0,   0,   1,   2,   3,   4, //70 
-  5,   6,   7,   8,   9,  10,  11,  12,  13,  14, //80 
- 15,  16,  17,  18,  19,  20,  21,  22,  23,  24, //90 
- 25,   0,   0,   0,   0,   0,   0,  26,  27,  28, //100 
- 29,  30,  31,  32,  33,  34,  35,  36,  37,  38, //110 
- 39,  40,  41,  42,  43,  44,  45,  46,  47,  48, //120 
- 49,  50,  51,   0,   0,   0,   0,   0,   0,   0, //130 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //140 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //150 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //160 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //170 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //180 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //190 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //200 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //210 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //220 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //230 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //240 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //250 
-  0,   0,   0,   0,   0,   0, 
-}; // This array has 256 elements
+static const signed char b64lookup[128] = {
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63,
+	52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -1, -1, -1,
+	-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+	15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1,
+	-1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+	41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1,
+};
 
-// Converts binary data of length=len to base64 characters.
-// Length of the resultant string is stored in flen
-// (you must pass pointer flen).
-char* base64( const void* binaryData, int len, int *flen )
+/*
+ * b64_encode
+ *
+ * Encode into base64 the given string.  Returns the length of the encoded
+ * string, and -1 in the event of an error with the result buffer zeroed
+ * for safety.
+ */
+int b64_encode(const char *src, int len, char *dst, int dstlen)
 {
-  const unsigned char* bin = (const unsigned char*) binaryData ;
-  char* res ;
-  
-  int rc = 0 ; // result counter
-  int byteNo ; // I need this after the loop
-  
-  int modulusLen = len % 3 ;
-  int pad = ((modulusLen&1)<<1) + ((modulusLen&2)>>1) ; // 2 gives 1 and 1 gives 2, but 0 gives 0.
-  
-  *flen = 4*(len + pad)/3 ;
-  res = (char*) malloc( *flen + 1 ) ; // and one for the null
-  if( !res )
-  {
-    puts( "ERROR: base64 could not allocate enough memory." ) ;
-    puts( "I must stop because I could not get enough" ) ;
-    return 0;
-  }
-  
-  for( byteNo = 0 ; byteNo <= len-3 ; byteNo+=3 )
-  {
-    unsigned char BYTE0=bin[byteNo];
-    unsigned char BYTE1=bin[byteNo+1];
-    unsigned char BYTE2=bin[byteNo+2];
-    res[rc++]  = b64[ BYTE0 >> 2 ] ;
-    res[rc++]  = b64[ ((0x3&BYTE0)<<4) + (BYTE1 >> 4) ] ;
-    res[rc++]  = b64[ ((0x0f&BYTE1)<<2) + (BYTE2>>6) ] ;
-    res[rc++]  = b64[ 0x3f&BYTE2 ] ;
-  }
-  
-  if( pad==2 )
-  {
-    res[rc++] = b64[ bin[byteNo] >> 2 ] ;
-    res[rc++] = b64[ (0x3&bin[byteNo])<<4 ] ;
-    res[rc++] = '=';
-    res[rc++] = '=';
-  }
-  else if( pad==1 )
-  {
-    res[rc++]  = b64[ bin[byteNo] >> 2 ] ;
-    res[rc++]  = b64[ ((0x3&bin[byteNo])<<4)   +   (bin[byteNo+1] >> 4) ] ;
-    res[rc++]  = b64[ (0x0f&bin[byteNo+1])<<2 ] ;
-    res[rc++] = '=';
-  }
-  
-  res[rc]=0; // NULL TERMINATOR! ;)
-  return res ;
+	char *p;
+	const char *s, *end = src + len;
+	int pos = 2;
+	unsigned long buf = 0;
+
+	s = src;
+	p = dst;
+
+	while (s < end)
+	{
+		buf |= (unsigned char) *s << (pos << 3);
+		pos--;
+		s++;
+
+		/* write it out */
+		if (pos < 0)
+		{
+			/*
+			 * Leave if there is an overflow in the area allocated for the
+			 * encoded string.
+			 */
+			if ((p - dst + 4) > dstlen)
+				goto error;
+
+			*p++ = _base64[(buf >> 18) & 0x3f];
+			*p++ = _base64[(buf >> 12) & 0x3f];
+			*p++ = _base64[(buf >> 6) & 0x3f];
+			*p++ = _base64[buf & 0x3f];
+
+			pos = 2;
+			buf = 0;
+		}
+	}
+	if (pos != 2)
+	{
+		/*
+		 * Leave if there is an overflow in the area allocated for the encoded
+		 * string.
+		 */
+		if ((p - dst + 4) > dstlen)
+			goto error;
+
+		*p++ = _base64[(buf >> 18) & 0x3f];
+		*p++ = _base64[(buf >> 12) & 0x3f];
+		*p++ = (pos == 0) ? _base64[(buf >> 6) & 0x3f] : '=';
+		*p++ = '=';
+	}
+
+	assert((p - dst) <= dstlen);
+	return p - dst;
+
+error:
+	memset(dst, 0, dstlen);
+	return -1;
 }
 
-unsigned char* unbase64( const char* ascii, int len, int *flen )
+/*
+ * b64_decode
+ *
+ * Decode the given base64 string.  Returns the length of the decoded
+ * string on success, and -1 in the event of an error with the result
+ * buffer zeroed for safety.
+ */
+int b64_decode(const char *src, int len, char *dst, int dstlen)
 {
-  const unsigned char *safeAsciiPtr = (const unsigned char*)ascii ;
-  unsigned char *bin ;
-  int cb=0;
-  int charNo;
-  int pad = 0 ;
+	const char *srcend = src + len, *s = src;
+	char *p = dst;
+	char c;
+	int b = 0;
+	unsigned long buf = 0;
+	int pos = 0, end = 0;
 
-  if( len < 2 ) { // 2 accesses below would be OOB.
-    // catch empty string, return NULL as result.
-    puts( "ERROR: You passed an invalid base64 string (too short). You get NULL back." ) ;
-    *flen=0;
-    return 0 ;
-  }
-  if( safeAsciiPtr[ len-1 ]=='=' )  ++pad ;
-  if( safeAsciiPtr[ len-2 ]=='=' )  ++pad ;
-  
-  *flen = 3*len/4 - pad ;
-  bin = (unsigned char*)malloc( *flen ) ;
-  if( !bin )
-  {
-    puts( "ERROR: unbase64 could not allocate enough memory." ) ;
-    puts( "I must stop because I could not get enough" ) ;
-    return 0;
-  }
-  
-  for( charNo=0; charNo <= len - 4 - pad ; charNo+=4 )
-  {
-    int A=unb64[safeAsciiPtr[charNo]];
-    int B=unb64[safeAsciiPtr[charNo+1]];
-    int C=unb64[safeAsciiPtr[charNo+2]];
-    int D=unb64[safeAsciiPtr[charNo+3]];
-    
-    bin[cb++] = (A<<2) | (B>>4) ;
-    bin[cb++] = (B<<4) | (C>>2) ;
-    bin[cb++] = (C<<6) | (D) ;
-  }
-  
-  if( pad==1 )
-  {
-    int A=unb64[safeAsciiPtr[charNo]];
-    int B=unb64[safeAsciiPtr[charNo+1]];
-    int C=unb64[safeAsciiPtr[charNo+2]];
-    
-    bin[cb++] = (A<<2) | (B>>4) ;
-    bin[cb++] = (B<<4) | (C>>2) ;
-  }
-  else if( pad==2 )
-  {
-    int A=unb64[safeAsciiPtr[charNo]];
-    int B=unb64[safeAsciiPtr[charNo+1]];
-    
-    bin[cb++] = (A<<2) | (B>>4) ;
-  }
-  
-  return bin ;
+	while (s < srcend)
+	{
+		c = *s++;
+
+		/* Leave if a whitespace is found */
+		if (c == ' ' || c == '\t' || c == '\n' || c == '\r')
+			goto error;
+
+		if (c == '=')
+		{
+			/* end sequence */
+			if (!end)
+			{
+				if (pos == 2)
+					end = 1;
+				else if (pos == 3)
+					end = 2;
+				else
+				{
+					/*
+					 * Unexpected "=" character found while decoding base64
+					 * sequence.
+					 */
+					goto error;
+				}
+			}
+			b = 0;
+		}
+		else
+		{
+			b = -1;
+			if (c > 0 && c < 127)
+				b = b64lookup[(unsigned char) c];
+			if (b < 0)
+			{
+				/* invalid symbol found */
+				goto error;
+			}
+		}
+		/* add it to buffer */
+		buf = (buf << 6) + b;
+		pos++;
+		if (pos == 4)
+		{
+			/*
+			 * Leave if there is an overflow in the area allocated for the
+			 * decoded string.
+			 */
+			if ((p - dst + 1) > dstlen)
+				goto error;
+			*p++ = (buf >> 16) & 255;
+
+			if (end == 0 || end > 1)
+			{
+				/* overflow check */
+				if ((p - dst + 1) > dstlen)
+					goto error;
+				*p++ = (buf >> 8) & 255;
+			}
+			if (end == 0 || end > 2)
+			{
+				/* overflow check */
+				if ((p - dst + 1) > dstlen)
+					goto error;
+				*p++ = buf & 255;
+			}
+			buf = 0;
+			pos = 0;
+		}
+	}
+
+	if (pos != 0)
+	{
+		/*
+		 * base64 end sequence is invalid.  Input data is missing padding, is
+		 * truncated or is otherwise corrupted.
+		 */
+		goto error;
+	}
+
+	assert((p - dst) <= dstlen);
+	return p - dst;
+
+error:
+	memset(dst, 0, dstlen);
+	return -1;
+}
+
+/*
+ * b64_enc_len
+ *
+ * Returns to caller the length of the string if it were encoded with
+ * base64 based on the length provided by caller.  This is useful to
+ * estimate how large a buffer allocation needs to be done before doing
+ * the actual encoding.
+ */
+int b64_enc_len(int srclen)
+{
+	/* 3 bytes will be converted to 4 */
+	return (srclen + 2) * 4 / 3;
+}
+
+/*
+ * b64_dec_len
+ *
+ * Returns to caller the length of the string if it were to be decoded
+ * with base64, based on the length given by caller.  This is useful to
+ * estimate how large a buffer allocation needs to be done before doing
+ * the actual decoding.
+ */
+int b64_dec_len(int srclen)
+{
+	return (srclen * 3) >> 2;
 }
