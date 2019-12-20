@@ -16,7 +16,11 @@
 #include "set.h"
 #include "window.h"
 
+#define QUOTE(name) #name
+#define STR(macro) QUOTE(macro)
+
 struct msg_log *g_from_upstream, *g_from_client;
+set *g_active_channels;
 
 void upstream_read(struct main_config *cfg);
 void client_read(struct main_config *cfg);
@@ -38,11 +42,17 @@ int main(int argc, const char **argv)
 		return EXIT_FAILURE;
 	}
 
+	if (!(g_active_channels = set_alloc()))
+	{
+		fputs("Failed to allocate channel hashtable\n", stderr);
+		return EXIT_FAILURE;
+	}
+
 	g_from_upstream = msg_log_alloc();
 	g_from_client = msg_log_alloc();
 	if (!g_from_upstream || !g_from_client)
 	{
-		fprintf(stderr, "Unable to allocate message logs\n");
+		fputs("Unable to allocate message logs\n", stderr);
 		return EXIT_FAILURE;
 	}
 
@@ -144,18 +154,12 @@ void upstream_read(struct main_config *cfg)
 	struct tls *tls;
 	window *w;
 	pthread_t upstream_write_thread;
-	char msg[MAX_IRC_MSG+1];
+	char msg[MAX_IRC_MSG+1], arg1[MAX_IRC_MSG+1], arg2[MAX_IRC_MSG+1];
 	ssize_t amt_read;
-	set *active_channels;
 
 	if (!(w = window_alloc(MAX_IRC_MSG)))
 	{
 		fputs("Failed to allocate irc message buffer\n", stderr);
-		exit(EXIT_FAILURE);
-	}
-	if (!(active_channels = set_alloc()))
-	{
-		fputs("Failed to allocate channel hashtable\n", stderr);
 		exit(EXIT_FAILURE);
 	}
 
@@ -195,18 +199,38 @@ void upstream_read(struct main_config *cfg)
 			window_fill(w, msg);
 			while ((line = window_next(w)) != NULL)
 			{
-				if (!(m	= msg_alloc()))
-				{
-					fputs("Unable to queue message from upstream", stderr);
-					continue;
-				}
-				m->at = time(NULL);
-				strcpy(m->text, line);
 				printf("s> %s\n", line);
-				msg_log_add(g_from_upstream, m);
+				if (strncmp(line, "PING ", 5) == 0)
+				{
+					if (!(m	= msg_alloc()))
+					{
+						fputs("Unable to queue PONG message\n", stderr);
+						continue;
+					}
+					m->at = time(NULL);
+					sprintf(m->text, "PONG %s", line+5);
+					msg_log_add(g_from_client, m);
+				}
+				else if (2 == sscanf(
+							line,
+							"KICK %" STR(MAX_IRC_MSG) "s %" STR(MAX_IRC_MSG) "s",
+						    arg1, arg2)
+						 && strcmp(cfg->nick, arg2) == 0)
+					set_rm(g_active_channels, arg1);
+				else
+				{
+					if (!(m	= msg_alloc()))
+					{
+						fputs("Unable to queue message from upstream", stderr);
+						continue;
+					}
+					m->at = time(NULL);
+					strcpy(m->text, line);
+					msg_log_add(g_from_upstream, m);
+				}
 			}
 		}
-		set_empty(active_channels);
+		set_empty(g_active_channels);
 	}
 }
 
