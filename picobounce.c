@@ -240,8 +240,16 @@ static void *client_write(struct tls *tls)
 	{
 		struct msg *m = msg_log_consume(g_from_upstream);
 		strcat(m->text, "\n");
+		char stamped_msg[MAX_IRC_MSG + 50];
 
-		if (!tls_error(tls) && tls_write(tls, m->text, strlen(m->text)) < 0)
+		/* For now just assuming the client has server-time
+		 * capability -- mine does! In the future honor their choice.
+		 */
+		strftime(stamped_msg, sizeof stamped_msg,
+				"@time=%Y-%m-%dT%H:%M:%S%Z ", gmtime(&m->at));
+		strncat(stamped_msg, m->text, MAX_IRC_MSG);
+
+		if (!tls_error(tls) && tls_write(tls, stamped_msg, strlen(stamped_msg)) < 0)
 		{
 			fprintf(stderr, "Error relaying to client: tls_write(): %s\n",
 					tls_error(tls));
@@ -309,6 +317,7 @@ void client_read(struct main_config *cfg)
 		struct tls *accepted_tls;
 		char msg[MAX_IRC_MSG+1];
 		ssize_t amt_read;
+		struct irc_caps caps;
 
 		/* open socket */
 		if ((accepted = accept(sock, NULL, NULL)) < 0)
@@ -324,7 +333,8 @@ void client_read(struct main_config *cfg)
 			continue;
 		}
 
-		if (client_auth(accepted_tls, cfg->local_user, cfg->local_pass))
+		caps = client_auth(accepted_tls, cfg->local_user, cfg->local_pass);
+		if (!caps.error)
 		{
 			pthread_create(&client_write_thread, NULL,
 					(void (*))(void *)&client_write, accepted_tls);

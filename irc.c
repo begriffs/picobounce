@@ -144,18 +144,48 @@ int negotiate_listen(const char *svc)
 	return sock;
 }
 
-bool
+struct irc_caps
+caps_requested(char *req)
+{
+	char *tok, *state = NULL;
+	struct irc_caps caps = {0};
+	char s[MAX_IRC_MSG] = {0};
+	int neg;
+
+	/* strtok_r modifies string, make a copy */
+	strncat(s, req, MAX_IRC_MSG);
+
+	for (tok = strtok_r(s, " ", &state);
+	     tok;
+	     tok = strtok_r(NULL, " ", &state))
+	{
+		neg = *tok == '-';
+		if (neg)
+			tok++;
+		if (strcmp("sasl", tok) == 0)
+			caps.sasl = !neg;
+		else if (strcmp("server-time", tok) == 0)
+			caps.server_time = !neg;
+		else /* unknown */
+			caps.error = true;
+	}
+	return caps;
+}
+
+struct irc_caps
 client_auth(struct tls *tls, const char *local_user, const char *local_pass)
 {
 	char msg[MAX_IRC_MSG+1],
 	     nick[MAX_IRC_NICK+1] = "*";
 	ssize_t amt_read;
 	window *w;
+	struct irc_caps caps = {0};
 
 	if (!(w = window_alloc(MAX_IRC_MSG)))
 	{
 		fputs("Failed to allocate irc message buffer\n", stderr);
-		return false;
+		caps.error = 1;
+		return caps;
 	}
 
 	while ((amt_read = tls_read(tls, msg, MAX_IRC_MSG)) > 0)
@@ -174,12 +204,13 @@ client_auth(struct tls *tls, const char *local_user, const char *local_pass)
 			}
 			else if (strncmp(line, "CAP REQ :", 9) == 0)
 			{
-				char *cap = line+9;
+				char *capreq = line+9;
+				caps = caps_requested(capreq);
 				tls_printf(tls, ":localhost CAP %s %s :%s\n",
-						nick, strcmp(cap, "sasl") ? "NAK" : "ACK", cap);
+						nick, caps.error ? "NAK" : "ACK", capreq);
 			}
 			else if (strncmp(line, "CAP LS 302", 8) == 0)
-				tls_printf(tls, ":localhost CAP %s LS :sasl\n", nick);
+				tls_printf(tls, ":localhost CAP %s LS :sasl server-time\n", nick);
 			else if (strncmp(line, "AUTHENTICATE ", 13) == 0)
 			{
 				char *auth = line+13;
@@ -202,13 +233,14 @@ client_auth(struct tls *tls, const char *local_user, const char *local_pass)
 						tls_printf(tls,
 								":localhost 903 %s :SASL authentication successful\n", nick);
 						window_free(w);
-						return true;
+						return caps;
 					}
 					else
 					{
+						caps.error = 1;
 						tls_printf(tls,
 								":localhost 904 %s :SASL authentication failed\n", nick);
-						/* keep trying I guess */
+						return caps;
 					}
 				}
 			}
@@ -219,7 +251,7 @@ client_auth(struct tls *tls, const char *local_user, const char *local_pass)
 		fprintf(stderr, "tls_read(): %s\n", tls_error(tls));
 
 	window_free(w);
-	return false;
+	return caps;
 }
 
 /*
