@@ -9,14 +9,14 @@ struct msg
 {
 	time_t at;
 	char   text[MAX_IRC_MSG];
-	struct msg *older, *newer;
+	struct msg *prev, *next;
 };
 
 struct msg *msg_alloc(void);
 
 struct msg_log
 {
-	struct  msg *oldest, *newest;
+	struct  msg *front, *rear;
 	ssize_t count;
 
 	pthread_mutex_t mutex;
