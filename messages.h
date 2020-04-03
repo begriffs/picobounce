@@ -16,14 +16,16 @@ struct msg *msg_alloc(void);
 
 struct msg_log
 {
-	struct  msg *front, *rear;
-	ssize_t count;
+	struct msg *front, *rear;
+	size_t count, max;
 
 	pthread_mutex_t mutex;
 	pthread_cond_t  ready;
 };
 
-struct msg_log *msg_log_alloc(void);
+#define NO_MESSAGE_LIMIT 0
+
+struct msg_log *msg_log_alloc(size_t max_messages);
 
 void msg_log_add(struct msg_log *log, struct msg *m);
 struct msg *msg_log_consume(struct msg_log *log);

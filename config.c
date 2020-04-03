@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "config.h"
+#include "messages.h" /* for NO_MESSAGE_LIMIT constant */
 
 #define ARR_LEN(arr) (sizeof(arr)/sizeof((arr)[0]))
 
@@ -13,6 +14,7 @@ struct main_config *load_config(const char *path)
 	char *val;
 	char line[MAX_CONFIG_LINE];
 	struct main_config *net;
+	char max_messages_s[MAX_CONFIG_LINE] = {0};
 
 	errno = 0;
    	if (!(f = fopen(path, "r")))
@@ -41,7 +43,8 @@ struct main_config *load_config(const char *path)
 			{"host", &net->host},
 			{"port", &net->port},
 			{"nick", &net->nick},
-			{"pass", &net->pass}
+			{"pass", &net->pass},
+			{"max_messages", &max_messages_s}
 		};
 		size_t i;
 
@@ -67,6 +70,9 @@ struct main_config *load_config(const char *path)
 	}
 	if (ferror(f))
 		perror("load_config");
+
+	if (sscanf(max_messages_s, "%zu", &net->max_messages) < 1)
+		net->max_messages = NO_MESSAGE_LIMIT;
 
 	return net;
 }

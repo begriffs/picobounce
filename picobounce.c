@@ -48,8 +48,8 @@ int main(int argc, const char **argv)
 		return EXIT_FAILURE;
 	}
 
-	g_from_upstream = msg_log_alloc();
-	g_from_client = msg_log_alloc();
+	g_from_upstream = msg_log_alloc(cfg->max_messages);
+	g_from_client = msg_log_alloc(NO_MESSAGE_LIMIT);
 	if (!g_from_upstream || !g_from_client)
 	{
 		fputs("Unable to allocate message logs\n", stderr);

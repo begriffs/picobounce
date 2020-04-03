@@ -14,6 +14,8 @@ struct main_config
 	char port[MAX_CONFIG_LINE];
 	char nick[MAX_CONFIG_LINE];
 	char pass[MAX_CONFIG_LINE];
+
+	size_t max_messages;
 };
 
 struct main_config *load_config(const char *path);
