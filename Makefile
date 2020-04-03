@@ -1,7 +1,7 @@
 OBJS = config.o irc.o messages.o set.o window.o
 
 CFLAGS = -std=c99 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wshadow
-LDFLAGS = -ltls -pthread
+LDFLAGS = -ltls -lpthread
 
 .SUFFIXES :
 .SUFFIXES : .o .c
