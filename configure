@@ -1,0 +1,9 @@
+#!/bin/sh -eu
+
+libs='libcrypto >= 2.5.0'
+pkg-config --exists --print-errors --short-errors $libs
+
+cat > config.mk <<EOF
+CFLAGS += $(pkg-config --cflags $libs)
+LDFLAGS += $(pkg-config --libs $libs)
+EOF

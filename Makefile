@@ -3,8 +3,10 @@
 OBJS = config.o irc.o messages.o set.o window.o
 
 CC = c99
-CFLAGS = -g -D_POSIX_C_SOURCE=200809L `pkg-config --cflags libcrypto`
-LDFLAGS = -pthread `pkg-config --libs libcrypto`
+CFLAGS = -g -D_POSIX_C_SOURCE=200809L
+LDFLAGS = -lpthread
+
+include config.mk
 
 .SUFFIXES :
 .SUFFIXES : .o .c

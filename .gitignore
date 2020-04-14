@@ -1,4 +1,5 @@
 picobounce
+config.mk
 *.o
 *.crt
 *.key
