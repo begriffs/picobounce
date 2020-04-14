@@ -57,7 +57,7 @@ int main(int argc, const char **argv)
 	}
 
 	pthread_create(&upstream_read_thread, NULL,
-			(void (*))(void *)&upstream_read, cfg);
+			(void *(*)(void*))upstream_read, cfg);
 	client_read(cfg);
 
 	/* should not get here */
@@ -189,7 +189,7 @@ void upstream_read(struct main_config *cfg)
 		printf("Authenticated with %s\n", cfg->host);
 
 		pthread_create(&upstream_write_thread, NULL,
-				(void (*))(void *)&upstream_write, tls);
+				(void *(*)(void*))upstream_write, tls);
 		while ((amt_read = tls_read(tls, msg, MAX_IRC_MSG)) > 0)
 		{
 			char *line;
@@ -337,7 +337,7 @@ void client_read(struct main_config *cfg)
 		if (!caps.error)
 		{
 			pthread_create(&client_write_thread, NULL,
-					(void (*))(void *)&client_write, accepted_tls);
+					(void *(*)(void*))client_write, accepted_tls);
 
 			while ((amt_read = tls_read(accepted_tls, msg, MAX_IRC_MSG)) > 0)
 			{

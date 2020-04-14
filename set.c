@@ -41,7 +41,7 @@ void set_empty(set *s)
 }
 
 static unsigned long
-djb2hash(const unsigned char *str)
+djb2hash(const char *str)
 {
 	unsigned long hash = 5381;
 	int c;

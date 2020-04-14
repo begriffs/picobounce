@@ -1,6 +1,8 @@
+.POSIX:
+
 OBJS = config.o irc.o messages.o set.o window.o
 
-CFLAGS = -std=c99 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wshadow
+CFLAGS = -std=c99 -pedantic -Wall -Wextra -Wshadow -D_POSIX_C_SOURCE=200809L -g
 LDFLAGS = -ltls -lpthread
 
 .SUFFIXES :
@@ -16,4 +18,4 @@ messages.o : messages.c messages.h irc.h window.h
 window.o : window.c window.h
 
 clean :
-	rm picobounce *.o
+	rm -f picobounce *.o
