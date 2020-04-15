@@ -8,10 +8,15 @@ instances of picobounce, each on a different port.
 
 ### Building
 
-The only dependencies are [LibreSSL](https://www.libressl.org/) and POSIX
-1003.1-2008. Just run `make` (I don't use GNU autocrap).
+Builds on OpenBSD with no dependencies. All other platforms require POSIX and
+[LibreSSL](https://www.libressl.org/). Additionally, non-BSD platforms require
+libbsd-overlay.
+
+The configure script will detect whatever dependencies are necessary on your
+system and create config.mk with the customizations.
 
 ```sh
+./configure
 make
 ```
 

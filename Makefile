@@ -3,10 +3,12 @@
 OBJS = config.o irc.o messages.o set.o window.o
 
 CFLAGS = -std=c99 -pedantic -Wall -Wextra -Wshadow -D_POSIX_C_SOURCE=200809L -g
-LDFLAGS = -ltls -lpthread
+LDFLAGS = -lpthread
 
 .SUFFIXES :
 .SUFFIXES : .o .c
+
+include config.mk
 
 picobounce : picobounce.c $(OBJS)
 	cc $(CFLAGS) -o $@ picobounce.c $(OBJS) $(LDFLAGS)
