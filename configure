@@ -19,11 +19,13 @@ esac
 case "$(uname -s)" in
 	OpenBSD)
 		# built in
+		LDLIBS += -ltls
 		;;
 	*)
 		pkg-config --print-errors 'libtls >= 2.5.0'
 		cat >> config.mk <<-EOF
 			CFLAGS += $(pkg-config --cflags libtls)
-			LDFLAGS += $(pkg-config --libs libtls)
+			LDFLAGS += $(pkg-config --libs-only-L libtls)
+			LDLIBS += $(pkg-config --libs-only-l libtls)
 		EOF
 esac
