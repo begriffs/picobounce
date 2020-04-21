@@ -2,7 +2,7 @@
 
 OBJS = config.o irc.o messages.o set.o window.o
 
-CFLAGS = -std=c99 -pedantic -Wall -Wextra -Wshadow -D_POSIX_C_SOURCE=200809L -g
+CFLAGS = -std=c99 -pedantic -Wall -Wextra -Wshadow -D_POSIX_C_SOURCE=200112L -g
 LDLIBS = -lpthread
 
 .SUFFIXES :

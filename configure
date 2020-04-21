@@ -2,19 +2,6 @@
 
 rm -f config.mk
 
-# Consistent BSD interface
-case "$(uname -s)" in
-	Darwin|DragonFly|*BSD)
-		# built in
-		;;
-	*)
-		pkg-config --print-errors libbsd-overlay
-		cat >> config.mk <<-EOF
-			CFLAGS += $(pkg-config --cflags libbsd-overlay)
-			LDFLAGS += $(pkg-config --libs libbsd-overlay)
-		EOF
-esac
-
 # LibreSSL
 case "$(uname -s)" in
 	OpenBSD)
