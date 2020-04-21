@@ -18,8 +18,9 @@ struct msg_log *msg_log_alloc(size_t max_messages)
 	struct msg_log *log = malloc(sizeof *log);
 	if (!log)
 		return NULL;
-	*log = (struct msg_log){0};
+	log->count = 0;
 	log->max = max_messages;
+	TAILQ_INIT(&log->head);
 	pthread_mutex_init(&log->mutex, NULL);
 	pthread_cond_init(&log->ready, NULL);
 	return log;
@@ -31,12 +32,8 @@ static struct msg *_msg_log_consume_unlocked(struct msg_log *log)
 	struct msg *ret;
 	assert(log->count > 0);
 
-	ret = log->front;
-	log->front = log->front->next;
-	if (log->front == NULL)
-		log->rear = NULL;
-	else
-		log->front->prev = NULL;
+	ret = TAILQ_FIRST(&log->head);
+	TAILQ_REMOVE(&log->head, ret, msgs);
 	log->count--;
 	return ret;
 }
@@ -45,14 +42,7 @@ void msg_log_add(struct msg_log *log, struct msg *m)
 {
 	pthread_mutex_lock(&log->mutex);
 
-	if (log->rear == NULL)
-		log->front = log->rear = m;
-	else
-	{
-		m->prev = log->rear;
-		log->rear->next = m;
-		log->rear = m;
-	}
+	TAILQ_INSERT_TAIL(&log->head, m, msgs);
 	log->count++;
 	if (log->max != NO_MESSAGE_LIMIT && log->count > log->max)
 	{
@@ -81,14 +71,7 @@ void msg_log_putback(struct msg_log *log, struct msg *m)
 {
 	pthread_mutex_lock(&log->mutex);
 
-	if (log->front == NULL)
-		log->rear = log->front = m;
-	else
-	{
-		m->next = log->front;
-		log->front->prev = m;
-		log->front = m;
-	}
+	TAILQ_INSERT_HEAD(&log->head, m, msgs);
 	log->count++;
 
 	pthread_cond_signal(&log->ready);

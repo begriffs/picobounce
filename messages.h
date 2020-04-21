@@ -4,19 +4,20 @@
 #include <pthread.h>
 
 #include "irc.h"
+#include "vendor/queue.h"
 
 struct msg
 {
 	time_t at;
 	char   text[MAX_IRC_MSG];
-	struct msg *prev, *next;
+	TAILQ_ENTRY(msg) msgs;
 };
 
-struct msg *msg_alloc(void);
+TAILQ_HEAD(msg_log_head, msg);
 
 struct msg_log
 {
-	struct msg *front, *rear;
+	struct msg_log_head head;
 	size_t count, max;
 
 	pthread_mutex_t mutex;
@@ -25,6 +26,7 @@ struct msg_log
 
 #define NO_MESSAGE_LIMIT 0
 
+struct msg *msg_alloc(void);
 struct msg_log *msg_log_alloc(size_t max_messages);
 
 void msg_log_add(struct msg_log *log, struct msg *m);
