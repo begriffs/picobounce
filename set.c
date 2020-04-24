@@ -1,105 +1,41 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <search.h>
+
 #include "set.h"
 
-#define HASHSZ 101
+typedef int (*cmpfn)(const void *, const void *);
 
-set *set_alloc(void)
+static int
+_always_equal(const void *a, const void *b)
 {
-	set *s = malloc(sizeof *s);
-	if (!s)
-		return NULL;
-	s->sz = HASHSZ;
-	s->hashtab = malloc(s->sz * (sizeof *s->hashtab));
-	if (!s->hashtab)
-	{
-		free(s);
-		return NULL;
-	}
-	set_empty(s);
-	return s;
+	(void) a;
+	(void) b;
+    return 0;
 }
 
-void set_empty(set *s)
+void set_free(void *s)
 {
-	size_t i;
-	struct bucket *cur, *next;
-
-	for (i = 0; i < s->sz; i++)
+	void *elt;
+	while ((elt = s) != NULL)
 	{
-		cur = s->hashtab[i];
-		while (cur)
-		{
-			next = cur->next;
-			free(cur->key);
-			free(cur);
-			cur = next;
-		}
-		s->hashtab[i] = NULL;
+		tdelete(elt, &s, _always_equal);
+		free(elt);
 	}
 }
 
-static unsigned long
-djb2hash(const char *str)
+bool set_contains(void *s, char *key)
 {
-	unsigned long hash = 5381;
-	int c;
-
-	if (str)
-		while ( (c = *str++) )
-			hash = hash * 33 + c;
-	return hash;
+	return tfind(key, s, (cmpfn)strcmp) != NULL;
 }
 
-static struct bucket *set_lookup(set *s, char *key)
+bool set_add(void *s, char *key)
 {
-	struct bucket* np;
-	for (np = s->hashtab[djb2hash(key) % s->sz]; np; np = np->next)
-		if (strcmp(key, np->key) == 0)
-			return np;
-	return NULL;
+	return tsearch(key, s, (cmpfn)strcmp);
 }
 
-bool set_contains(set *s, char *key)
+void set_rm(void *s, char *key)
 {
-	return set_lookup(s, key) != NULL;
-}
-
-bool set_add(set *s, char *key)
-{
-	struct bucket *np;
-	unsigned long h;
-
-	if ((np = set_lookup(s, key)) == NULL)
-	{
-		np = malloc(sizeof(*np));
-		if (np == NULL || (np->key = strdup(key)) == NULL)
-			return false;
-		h = djb2hash(key) % s->sz;
-		np->next = s->hashtab[h];
-		s->hashtab[h] = np;
-	}
-	return true;
-}
-
-void set_rm(set *s, char *key)
-{
-	struct bucket *np, *prev;
-	unsigned long h = djb2hash(key) % s->sz;
-	if ((np = s->hashtab[h]) == NULL)
-		return;
-	for (prev = NULL; np; np = np->next, prev = np)
-	{
-		if (strcmp(key, np->key) == 0)
-		{
-			if (prev == NULL)
-				s->hashtab[h] = np->next;
-			else
-				prev->next = np->next;
-			free(np->key);
-			free(np);
-			break;
-		}
-	}
+	tdelete(key, s, (cmpfn)strcmp);
 }

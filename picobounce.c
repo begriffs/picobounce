@@ -20,7 +20,7 @@
 #define STR(macro) QUOTE(macro)
 
 struct msg_log *g_from_upstream, *g_from_client;
-set *g_active_channels;
+void *g_active_channels = NULL;
 
 void upstream_read(struct main_config *cfg);
 void client_read(struct main_config *cfg);
@@ -39,12 +39,6 @@ int main(int argc, const char **argv)
 	if (!(cfg = load_config(argv[1])))
 	{
 		fprintf(stderr, "Failed to load config from \"%s\"\n", argv[1]);
-		return EXIT_FAILURE;
-	}
-
-	if (!(g_active_channels = set_alloc()))
-	{
-		fputs("Failed to allocate channel hashtable\n", stderr);
 		return EXIT_FAILURE;
 	}
 
@@ -230,7 +224,7 @@ void upstream_read(struct main_config *cfg)
 				}
 			}
 		}
-		set_empty(g_active_channels);
+		set_free(g_active_channels);
 	}
 }
 

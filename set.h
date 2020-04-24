@@ -3,30 +3,9 @@
 
 #include <stdbool.h>
 
-struct bucket
-{
-	struct bucket *next;
-	char *key;
-};
-
-typedef struct
-{
-	size_t sz;
-	struct bucket **hashtab;
-} set;
-
-set *set_alloc(void);
-
-/* removes all items
- *
- * be sure to call before free(s) to free internals
- */
-void set_empty(set *s);
-
-bool set_contains(set *s, char *key);
-
-bool set_add(set *s, char *key);
-
-void set_rm(set *s, char *key);
+void set_free(void *s);
+bool set_contains(void *s, char *key);
+bool set_add(void *s, char *key);
+void set_rm(void *s, char *key);
 
 #endif
