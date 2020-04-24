@@ -11,7 +11,7 @@ LDLIBS = -lpthread
 include config.mk
 
 picobounce : picobounce.c $(OBJS)
-	cc $(CFLAGS) $(LDFLAGS) -o $@ picobounce.c $(OBJS) $(LDLIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ picobounce.c $(OBJS) $(LDLIBS)
 
 config.o : config.c config.h messages.h
 set.o : set.c set.h
