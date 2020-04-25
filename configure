@@ -5,8 +5,8 @@ rm -f config.mk
 # LibreSSL
 case "$(uname -s)" in
 	OpenBSD)
-		# built in
-		LDLIBS += -ltls
+		# included with OS
+		echo 'LDLIBS += -ltls' >> config.mk
 		;;
 	*)
 		pkg-config --print-errors 'libtls >= 2.5.0'
