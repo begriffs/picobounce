@@ -127,7 +127,6 @@ static void *upstream_write(struct tls *tls)
 	while (1)
 	{
 		struct msg *m = msg_log_consume(g_from_client);
-		strcat(m->text, "\n");
 
 		if (!tls_error(tls) && tls_write(tls, m->text, strlen(m->text)) < 0)
 		{
@@ -139,6 +138,7 @@ static void *upstream_write(struct tls *tls)
 			 * can respawn us after reconnection */
 			return NULL;
 		}
+		tls_write(tls, "\n", 1);
 	}
 	return NULL;
 }
@@ -202,7 +202,7 @@ void upstream_read(struct main_config *cfg)
 						continue;
 					}
 					m->at = time(NULL);
-					sprintf(m->text, "PONG %s", line+5);
+					snprintf(m->text, MAX_IRC_MSG, "PONG %s", line+5);
 					msg_log_add(g_from_client, m);
 				}
 				else if (2 == sscanf(
@@ -219,7 +219,7 @@ void upstream_read(struct main_config *cfg)
 						continue;
 					}
 					m->at = time(NULL);
-					strcpy(m->text, line);
+					snprintf(m->text, MAX_IRC_MSG, "%s", line);
 					msg_log_add(g_from_upstream, m);
 				}
 			}
