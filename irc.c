@@ -149,7 +149,7 @@ caps_requested(char *req)
 {
 	char *tok, *state = NULL;
 	struct irc_caps caps = {0};
-	char s[MAX_IRC_MSG] = {0};
+	char s[MAX_IRC_MSG+1] = {0};
 	int neg;
 
 	/* strtok_r modifies string, make a copy */

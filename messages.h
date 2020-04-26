@@ -9,7 +9,7 @@
 struct msg
 {
 	time_t at;
-	char   text[MAX_IRC_MSG];
+	char   text[MAX_IRC_MSG+1];
 	TAILQ_ENTRY(msg) msgs;
 };
 
