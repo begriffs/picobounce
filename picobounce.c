@@ -344,7 +344,31 @@ void client_read(struct main_config *cfg)
 				{
 					if (strncmp(line, "QUIT ", 5) == 0)
 						continue; /* client may quit, but we don't */
-					if (!(m	= msg_alloc()))
+					if (strncmp(line, "JOIN ", 5) == 0)
+					{
+						if (set_contains(g_active_channels, "foo"))
+						{
+							/* already joined, so get TOPIC and NAMES for client */
+							if (!(m = msg_alloc()))
+							{
+								fputs("Unable to queue message from client", stderr);
+								continue;
+							}
+							m->at = time(NULL);
+							snprintf(m->text, MAX_IRC_MSG, "TOPIC %s", line+5);
+							msg_log_add(g_from_client, m);
+
+							if (!(m = msg_alloc()))
+							{
+								fputs("Unable to queue message from client", stderr);
+								continue;
+							}
+							m->at = time(NULL);
+							snprintf(m->text, MAX_IRC_MSG, "NAMES %s", line+5);
+							continue;
+						}
+					}
+					else if (!(m = msg_alloc()))
 					{
 						fputs("Unable to queue message from client", stderr);
 						continue;
