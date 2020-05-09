@@ -174,6 +174,7 @@ void upstream_read(struct main_config *cfg)
 			tls_free(tls);
 			exit(EXIT_FAILURE);
 		}
+		tls_handshake(tls);
 		if (tls_dump_keylog(tls))
 			puts("upstream_read(): Logged ephemeral key");
 		if (!upstream_auth(tls, cfg->nick, cfg->pass))

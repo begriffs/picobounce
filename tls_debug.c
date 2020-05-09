@@ -43,7 +43,7 @@ struct tls_internal {
 static void _writehex(FILE *fp, const unsigned char* s, size_t len)
 {
 	while (len-- > 0)
-		fprintf(fp, "%2x", *s++);
+		fprintf(fp, "%02x", *s++);
 }
 
 bool tls_dump_keylog(struct tls *tls)
