@@ -14,6 +14,7 @@
 #include "irc.h"
 #include "messages.h"
 #include "set.h"
+#include "tls_debug.h"
 #include "window.h"
 
 #define QUOTE(name) #name
@@ -173,6 +174,8 @@ void upstream_read(struct main_config *cfg)
 			tls_free(tls);
 			exit(EXIT_FAILURE);
 		}
+		if (tls_dump_keylog(tls))
+			puts("upstream_read(): Logged ephemeral key");
 		if (!upstream_auth(tls, cfg->nick, cfg->pass))
 		{
 			fputs("Server authentication failed\n", stderr);
