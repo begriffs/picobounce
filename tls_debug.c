@@ -67,7 +67,7 @@ bool tls_dump_keylog(struct tls *tls)
 	len_key = SSL_SESSION_get_master_key(sess, key, sizeof key);
 	id      = SSL_SESSION_get_id(sess, &len_id);
 
-	if ((fp = fopen(path, "w")) == NULL)
+	if ((fp = fopen(path, "a")) == NULL)
 	{
 		fprintf(stderr, "Unable to write keylog to '%s'\n", path);
 		return false;
