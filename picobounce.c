@@ -114,6 +114,7 @@ upstream_auth(struct tls *tls, const char *user, const char *pass)
 
 irc_sasl_auth_done:
 
+	tls_printf(tls, "CAP END\n");
 	regfree(&sasl_supported);
 	regfree(&sasl_unsupported);
 	regfree(&sasl_ok);
