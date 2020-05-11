@@ -123,8 +123,9 @@ irc_sasl_auth_done:
 	return authed;
 }
 
-static void *upstream_write(struct tls *tls)
+static void *upstream_write(void *p)
 {
+	struct tls *tls = p;
 	while (1)
 	{
 		struct msg *m = msg_log_consume(g_from_client);
@@ -184,7 +185,7 @@ void upstream_read(struct main_config *cfg)
 		printf("Authenticated with %s\n", cfg->host);
 
 		pthread_create(&upstream_write_thread, NULL,
-				(void *(*)(void*))upstream_write, tls);
+				upstream_write, tls);
 		while ((amt_read = tls_read(tls, msg, MAX_IRC_MSG)) > 0)
 		{
 			char *line;
@@ -230,8 +231,9 @@ void upstream_read(struct main_config *cfg)
 	}
 }
 
-static void *client_write(struct tls *tls)
+static void *client_write(void *p)
 {
+	struct tls *tls = p;
 	while (1)
 	{
 		struct msg *m = msg_log_consume(g_from_upstream);
@@ -333,7 +335,7 @@ void client_read(struct main_config *cfg)
 		if (!caps.error)
 		{
 			pthread_create(&client_write_thread, NULL,
-					(void *(*)(void*))client_write, accepted_tls);
+					client_write, accepted_tls);
 
 			while ((amt_read = tls_read(accepted_tls, msg, MAX_IRC_MSG)) > 0)
 			{
