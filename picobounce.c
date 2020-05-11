@@ -225,6 +225,7 @@ void upstream_read(struct main_config *cfg)
 				}
 			}
 		}
+		// TODO: tls_reset(tls)
 		set_free(g_active_channels);
 	}
 }
