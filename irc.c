@@ -83,10 +83,9 @@ ssize_t tls_printf(struct tls *tls, const char *fmt, ...)
 	if (vsnprintf(out, MAX_IRC_MSG, fmt, ap) > MAX_IRC_MSG)
 		fprintf(stderr, "tls_printf(): message truncated: %s\n", fmt);
 
+	printf("<- %s", out);
 	if ((ret = tls_write(tls, out, strlen(out))) < 0)
 		fprintf(stderr, "tls_write(): %s\n", tls_error(tls));
-
-	printf("<- %s", out);
 
 	va_end(ap);
 	return ret;
