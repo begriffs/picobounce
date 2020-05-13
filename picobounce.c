@@ -126,21 +126,30 @@ irc_sasl_auth_done:
 static void *upstream_write(void *p)
 {
 	struct tls *tls = p;
+	int oldstate;
+
 	while (1)
 	{
 		struct msg *m = msg_log_consume(g_from_client);
 
-		if (!tls_error(tls) && tls_write(tls, m->text, strlen(m->text)) < 0)
+		/* in case tls_write is a cancellation point */
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate);
+
+		if (tls_write(tls, m->text, strlen(m->text)) < 0)
 		{
 			fprintf(stderr, "Error relaying to upstream: tls_write(): %s\n",
 					tls_error(tls));
 			/* a chance this is slightly out of order now, but no worries */
 			msg_log_putback(g_from_client, m);
+			pthread_setcancelstate(oldstate, &oldstate);
 			/* upstreamclient probably disconnected, return and parent
 			 * can respawn us after reconnection */
 			return NULL;
 		}
 		tls_write(tls, "\n", 1);
+
+		/* return to original cancellation state */
+		pthread_setcancelstate(oldstate, &oldstate);
 	}
 	return NULL;
 }
@@ -159,14 +168,14 @@ void upstream_read(struct main_config *cfg)
 		exit(EXIT_FAILURE);
 	}
 
-	if (!(tls = tls_client()))
-	{
-		fputs("Failed to obtain TLS client\n", stderr);
-		exit(EXIT_FAILURE);
-	}
-
 	while (1)
 	{
+		if (!(tls = tls_client()))
+		{
+			fputs("Failed to obtain TLS client\n", stderr);
+			exit(EXIT_FAILURE);
+		}
+
 		printf("Connecting to %s:%s as %s\n", cfg->host, cfg->port, cfg->nick);
 
 		if (tls_connect(tls, cfg->host, cfg->port) != 0)
@@ -226,8 +235,12 @@ void upstream_read(struct main_config *cfg)
 				}
 			}
 		}
-		// TODO: tls_reset(tls)
+		pthread_cancel(upstream_write_thread);
+		pthread_join(upstream_write_thread, NULL);
+		tls_close(tls);
+		tls_free(tls);
 		set_free(g_active_channels);
+		g_active_channels = NULL;
 	}
 }
 

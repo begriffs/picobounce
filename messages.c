@@ -54,16 +54,24 @@ void msg_log_add(struct msg_log *log, struct msg *m)
 	pthread_mutex_unlock(&log->mutex);
 }
 
+static void _msg_log_cleanup(void *arg)
+{
+	struct msg_log *log = arg;
+	pthread_mutex_unlock(&log->mutex);
+}
+
 struct msg *msg_log_consume(struct msg_log *log)
 {
 	struct msg *ret;
+
+	pthread_cleanup_push(_msg_log_cleanup, log);
 	pthread_mutex_lock(&log->mutex);
 
 	while (log->count < 1)
 		pthread_cond_wait(&log->ready, &log->mutex);
 	ret = _msg_log_consume_unlocked(log);
-
-	pthread_mutex_unlock(&log->mutex);
+	
+	pthread_cleanup_pop(1); /* unlocks the mutex */
 	return ret;
 }
 
