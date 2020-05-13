@@ -9,8 +9,7 @@ instances of picobounce, each on a different port.
 ### Building
 
 Builds on OpenBSD with no dependencies. All other platforms require POSIX and
-[LibreSSL](https://www.libressl.org/). Additionally, non-BSD platforms require
-libbsd-overlay.
+[LibreSSL](https://www.libressl.org/).
 
 The configure script will detect whatever dependencies are necessary on your
 system and create config.mk with the customizations.
