@@ -260,7 +260,7 @@ static void *client_write(void *p)
 				"@time=%Y-%m-%dT%H:%M:%S%Z ", gmtime(&m->at));
 		strncat(stamped_msg, m->text, MAX_IRC_MSG);
 
-		if (!tls_error(tls) && tls_write(tls, stamped_msg, strlen(stamped_msg)) < 0)
+		if (tls_write(tls, stamped_msg, strlen(stamped_msg)) < 0)
 		{
 			fprintf(stderr, "Error relaying to client: tls_write(): %s\n",
 					tls_error(tls));
