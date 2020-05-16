@@ -247,11 +247,13 @@ void upstream_read(struct main_config *cfg)
 static void *client_write(void *p)
 {
 	struct tls *tls = p;
+	char stamped_msg[MAX_IRC_MSG + 50];
+	struct msg *m;
+	int oldstate;
+
 	while (1)
 	{
-		struct msg *m = msg_log_consume(g_from_upstream);
-		strcat(m->text, "\n");
-		char stamped_msg[MAX_IRC_MSG + 50];
+		m = msg_log_consume(g_from_upstream);
 
 		/* For now just assuming the client has server-time
 		 * capability -- mine does! In the future honor their choice.
@@ -259,6 +261,9 @@ static void *client_write(void *p)
 		strftime(stamped_msg, sizeof stamped_msg,
 				"@time=%Y-%m-%dT%H:%M:%S%Z ", gmtime(&m->at));
 		strncat(stamped_msg, m->text, MAX_IRC_MSG);
+
+		/* in case tls_write is a cancellation point */
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate);
 
 		if (tls_write(tls, stamped_msg, strlen(stamped_msg)) < 0)
 		{
@@ -270,6 +275,10 @@ static void *client_write(void *p)
 			 * can respawn us after reconnection */
 			return NULL;
 		}
+		tls_write(tls, "\n", 1);
+
+		/* return to original cancellation state */
+		pthread_setcancelstate(oldstate, &oldstate);
 	}
 	return NULL;
 }
@@ -398,6 +407,8 @@ void client_read(struct main_config *cfg)
 			}
 		}
 
+		pthread_cancel(client_write_thread);
+		pthread_join(client_write_thread, NULL);
 		tls_close(accepted_tls);
 		tls_free(accepted_tls);
 		close(accepted);
