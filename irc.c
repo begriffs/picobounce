@@ -201,9 +201,9 @@ client_auth(struct tls *tls, const char *local_user, const char *local_pass)
 				snprintf(nick, MAX_IRC_NICK, "%s", line+5);
 				printf("!! Nick is now %s\n", nick);
 			}
-			else if (strncmp(line, "CAP REQ :", 9) == 0)
+			else if (strncmp(line, "CAP REQ ", 8) == 0)
 			{
-				char *capreq = line+9;
+				char *capreq = line+8;
 				caps = caps_requested(capreq);
 				tls_printf(tls, ":localhost CAP %s %s :%s\n",
 						nick, caps.error ? "NAK" : "ACK", capreq);
