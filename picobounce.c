@@ -370,6 +370,8 @@ void client_read(struct main_config *cfg)
 				{
 					if (strncmp(line, "QUIT ", 5) == 0)
 						continue; /* client may quit, but we don't */
+					if (strncmp(line, "PRIVMSG NickServ", 16) == 0)
+						continue; /* nope, we use SASL */
 					if (strncmp(line, "JOIN ", 5) == 0)
 					{
 						if (set_contains(g_active_channels, "foo"))
