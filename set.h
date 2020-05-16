@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 
+#define EMPTY_SET NULL
+
 void set_free(void *s);
 bool set_contains(void *s, char *key);
 bool set_add(void *s, char *key);

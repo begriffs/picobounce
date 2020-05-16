@@ -20,7 +20,7 @@
 #define STR(macro) QUOTE(macro)
 
 struct msg_log *g_from_upstream, *g_from_client;
-void *g_active_channels = NULL;
+void *g_active_channels = EMPTY_SET;
 
 void upstream_read(struct main_config *cfg);
 void client_read(struct main_config *cfg);
@@ -80,7 +80,7 @@ upstream_auth(struct tls *tls, const char *user, const char *pass)
 	if (!(w = window_alloc(MAX_IRC_MSG)))
 	{
 		fputs("Failed to allocate irc message buffer\n", stderr);
-		return false;
+		goto irc_sasl_auth_done;
 	}
 
 	tls_printf(tls, "CAP REQ :sasl\n");
@@ -105,6 +105,7 @@ upstream_auth(struct tls *tls, const char *user, const char *pass)
 			else if (regexec(&sasl_ok, line, 0, NULL, 0) == 0)
 			{
 				authed = true;
+				tls_printf(tls, "CAP END\n");
 				goto irc_sasl_auth_done;
 			}
 			else if (regexec(&sasl_bad, line, 0, NULL, 0) == 0)
@@ -114,7 +115,6 @@ upstream_auth(struct tls *tls, const char *user, const char *pass)
 
 irc_sasl_auth_done:
 
-	tls_printf(tls, "CAP END\n");
 	regfree(&sasl_supported);
 	regfree(&sasl_unsupported);
 	regfree(&sasl_ok);
@@ -142,7 +142,7 @@ static void *upstream_write(void *p)
 			/* a chance this is slightly out of order now, but no worries */
 			msg_log_putback(g_from_client, m);
 			pthread_setcancelstate(oldstate, &oldstate);
-			/* upstreamclient probably disconnected, return and parent
+			/* upstream probably disconnected, so return and parent
 			 * can respawn us after reconnection */
 			return NULL;
 		}
@@ -240,7 +240,7 @@ void upstream_read(struct main_config *cfg)
 		tls_close(tls);
 		tls_free(tls);
 		set_free(g_active_channels);
-		g_active_channels = NULL;
+		g_active_channels = EMPTY_SET;
 	}
 }
 
