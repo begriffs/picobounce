@@ -23,7 +23,7 @@ void set_rm_all(struct set *s)
 	}
 }
 
-/* TODO: is this a safe practice? */
+/* TODO: is casting a safe practice? */
 typedef int (*cmpfn)(const void *, const void *);
 
 bool set_contains(struct set *s, char *key)
@@ -51,8 +51,7 @@ void set_rm(struct set *s, char *key)
 	elt = tfind(key, s->elts, (cmpfn)strcmp);
 	if (elt)
 	{
-		/* redundant search, but it's the simplest way */
-		tdelete(key, s->elts, (cmpfn)strcmp);
+		tdelete(key, elt, (cmpfn)strcmp);
 		free(elt);
 	}
 	pthread_mutex_unlock(&s->mut);

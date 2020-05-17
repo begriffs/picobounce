@@ -373,39 +373,62 @@ void client_read(struct main_config *cfg)
 						continue; /* nope, we use SASL */
 					if (strncmp(line, "JOIN ", 5) == 0)
 					{
-						if (set_contains(&g_active_channels, line+5))
+						/* remove keys list (after space) if exists */
+						line[5+strcspn(line+5, " ")] = '\0';
+						/* loop over channels */
+						char *chan, *state = NULL;
+						for (chan = strtok_r(line+5, ",", &state);
+						     chan;
+						     chan = strtok_r(NULL, ",", &state))
 						{
-							/* already joined, so get TOPIC and NAMES for client */
-							if (!(m = msg_alloc()))
+							if (set_contains(&g_active_channels, chan))
 							{
-								fputs("Unable to queue message from client\n", stderr);
-								continue;
-							}
-							m->at = time(NULL);
-							snprintf(m->text, MAX_IRC_MSG, "TOPIC %s", line+5);
-							msg_log_add(g_from_client, m);
+								/* already joined, so get TOPIC and NAMES for client */
+								if (!(m = msg_alloc()))
+								{
+									fputs("Unable to queue TOPIC message from client\n", stderr);
+									continue;
+								}
+								m->at = time(NULL);
+								snprintf(m->text, MAX_IRC_MSG, "TOPIC %s", chan);
+								msg_log_add(g_from_client, m);
 
-							if (!(m = msg_alloc()))
-							{
-								fputs("Unable to queue message from client\n", stderr);
-								continue;
+								if (!(m = msg_alloc()))
+								{
+									fputs("Unable to queue NAMES message from client\n", stderr);
+									continue;
+								}
+								m->at = time(NULL);
+								snprintf(m->text, MAX_IRC_MSG, "NAMES %s", chan);
+								msg_log_add(g_from_client, m);
 							}
-							m->at = time(NULL);
-							snprintf(m->text, MAX_IRC_MSG, "NAMES %s", line+5);
-							continue;
-						}
-						else
-						{
-							/* strdup is POSIX, not C99, and
-							 * strndup is not available in POSIX.1-2001 */
-							char *chan = strdup(line+5);
-							if (chan)
-								set_add(&g_active_channels, chan);
 							else
-								fputs("Unable to duplicate channel name\n", stderr);
+							{
+								/* strdup is POSIX, not C99, and
+								 * strndup is not available in POSIX.1-2001 */
+								char *chandup = strdup(chan);
+								if (chandup)
+									set_add(&g_active_channels, chandup);
+								else
+									fputs("Unable to duplicate channel name\n", stderr);
+							}
 						}
 					}
-					else if (!(m = msg_alloc()))
+					else if (strncmp(line, "PART ", 5) == 0)
+					{
+						/* remove part message (after space) if exists */
+						line[5+strcspn(line+5, " ")] = '\0';
+						/* loop over channels */
+						char *chan, *state = NULL;
+						for (chan = strtok_r(line+5, ",", &state);
+						     chan;
+						     chan = strtok_r(NULL, ",", &state))
+						{
+							set_rm(&g_active_channels, chan);
+						}
+					}
+					
+					if (!(m = msg_alloc()))
 					{
 						fputs("Unable to queue message from client", stderr);
 						continue;
