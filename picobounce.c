@@ -20,7 +20,7 @@
 #define STR(macro) QUOTE(macro)
 
 struct msg_log *g_from_upstream, *g_from_client;
-void *g_active_channels = EMPTY_SET;
+struct set g_active_channels = EMPTY_SET;
 
 void upstream_read(struct main_config *cfg);
 void client_read(struct main_config *cfg);
@@ -221,7 +221,7 @@ void upstream_read(struct main_config *cfg)
 							"KICK %" STR(MAX_IRC_MSG) "s %" STR(MAX_IRC_MSG) "s",
 						    arg1, arg2)
 						 && strcmp(cfg->nick, arg2) == 0)
-					set_rm(g_active_channels, arg1);
+					set_rm(&g_active_channels, arg1);
 				else
 				{
 					if (!(m	= msg_alloc()))
@@ -239,8 +239,7 @@ void upstream_read(struct main_config *cfg)
 		pthread_join(upstream_write_thread, NULL);
 		tls_close(tls);
 		tls_free(tls);
-		set_free(g_active_channels);
-		g_active_channels = EMPTY_SET;
+		set_rm_all(&g_active_channels);
 	}
 }
 
@@ -374,12 +373,12 @@ void client_read(struct main_config *cfg)
 						continue; /* nope, we use SASL */
 					if (strncmp(line, "JOIN ", 5) == 0)
 					{
-						if (set_contains(g_active_channels, "foo"))
+						if (set_contains(&g_active_channels, line+5))
 						{
 							/* already joined, so get TOPIC and NAMES for client */
 							if (!(m = msg_alloc()))
 							{
-								fputs("Unable to queue message from client", stderr);
+								fputs("Unable to queue message from client\n", stderr);
 								continue;
 							}
 							m->at = time(NULL);
@@ -388,12 +387,22 @@ void client_read(struct main_config *cfg)
 
 							if (!(m = msg_alloc()))
 							{
-								fputs("Unable to queue message from client", stderr);
+								fputs("Unable to queue message from client\n", stderr);
 								continue;
 							}
 							m->at = time(NULL);
 							snprintf(m->text, MAX_IRC_MSG, "NAMES %s", line+5);
 							continue;
+						}
+						else
+						{
+							/* strdup is POSIX, not C99, and
+							 * strndup is not available in POSIX.1-2001 */
+							char *chan = strdup(line+5);
+							if (chan)
+								set_add(&g_active_channels, chan);
+							else
+								fputs("Unable to duplicate channel name\n", stderr);
 						}
 					}
 					else if (!(m = msg_alloc()))

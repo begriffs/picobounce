@@ -5,8 +5,6 @@
 
 #include "set.h"
 
-typedef int (*cmpfn)(const void *, const void *);
-
 static int
 _always_equal(const void *a, const void *b)
 {
@@ -15,27 +13,47 @@ _always_equal(const void *a, const void *b)
     return 0;
 }
 
-void set_free(void *s)
+void set_rm_all(struct set *s)
 {
-	void *elt;
-	while ((elt = s) != NULL)
+	void *t;
+	while ((t = s->elts) != NULL)
 	{
-		tdelete(elt, &s, _always_equal);
-		free(elt);
+		tdelete(t, &s->elts, _always_equal);
+		free(t);
 	}
 }
 
-bool set_contains(void *s, char *key)
+/* TODO: is this a safe practice? */
+typedef int (*cmpfn)(const void *, const void *);
+
+bool set_contains(struct set *s, char *key)
 {
-	return tfind(key, s, (cmpfn)strcmp) != NULL;
+	bool ret;
+	pthread_mutex_lock(&s->mut);
+	ret = tfind(key, s->elts, (cmpfn)strcmp) != NULL;
+	pthread_mutex_unlock(&s->mut);
+	return ret;
 }
 
-bool set_add(void *s, char *key)
+bool set_add(struct set *s, char *key)
 {
-	return tsearch(key, s, (cmpfn)strcmp);
+	bool ret;
+	pthread_mutex_lock(&s->mut);
+	ret = tsearch(key, s->elts, (cmpfn)strcmp);
+	pthread_mutex_unlock(&s->mut);
+	return ret;
 }
 
-void set_rm(void *s, char *key)
+void set_rm(struct set *s, char *key)
 {
-	tdelete(key, s, (cmpfn)strcmp);
+	void *elt;
+	pthread_mutex_lock(&s->mut);
+	elt = tfind(key, s->elts, (cmpfn)strcmp);
+	if (elt)
+	{
+		/* redundant search, but it's the simplest way */
+		tdelete(key, s->elts, (cmpfn)strcmp);
+		free(elt);
+	}
+	pthread_mutex_unlock(&s->mut);
 }
