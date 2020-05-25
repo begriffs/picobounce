@@ -96,7 +96,10 @@ set_to_list(struct set *s)
 	SLIST_INIT(head);
 
 	pthread_setspecific(tsd_key, head);
+	
+	pthread_mutex_lock(&s->mut);
 	twalk(s->elts, add_node_to_list);
+	pthread_mutex_unlock(&s->mut);
 
 	/* caller is responsible for freeing it */
 	return head;
