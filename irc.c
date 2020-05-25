@@ -163,7 +163,7 @@ caps_requested(char *req)
 			tok++;
 		if (strcmp("sasl", tok) == 0)
 			caps.sasl = !neg;
-		else if (strcmp("server-time", tok) == 0)
+		else if (strstr(tok, "server-time"))
 			caps.server_time = !neg;
 		else /* unknown */
 			caps.error = true;
