@@ -68,8 +68,6 @@ static void initialize_key(void)
 {
 	pthread_key_create(&tsd_key, NULL);
 }
-
-static struct set_list *tsd_list;
 /* end thread-specific data */
 
 static void
