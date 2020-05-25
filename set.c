@@ -56,3 +56,50 @@ void set_rm(struct set *s, char *key)
 	}
 	pthread_mutex_unlock(&s->mut);
 }
+
+/* thread-specific data
+ *
+ * the twalk() callback needs to build its list in a global
+ * variable, so we'll keep it safe with a pthread key */
+static pthread_once_t tsd_key_once = PTHREAD_ONCE_INIT;
+static pthread_key_t tsd_key;
+
+static void initialize_key(void)
+{
+	pthread_key_create(&tsd_key, NULL);
+}
+
+static struct set_list *tsd_list;
+/* end thread-specific data */
+
+static void
+add_node_to_list(const void *ptr, VISIT order, int level)
+{
+	(void)level;
+	
+	if (order == postorder || order == leaf)
+	{
+		struct set_list *head = pthread_getspecific(tsd_key);
+		struct set_list_item *item = malloc(sizeof(*item));
+
+		item->key = strdup(ptr);
+		SLIST_INSERT_HEAD(head, item, link);
+	}
+}
+
+struct set_list *
+set_to_list(struct set *s)
+{
+	struct set_list *head;
+
+	pthread_once(&tsd_key_once, initialize_key);
+	if ((head = malloc(sizeof(*head))) == NULL)
+		return NULL;
+	SLIST_INIT(head);
+
+	pthread_setspecific(tsd_key, head);
+	twalk(s->elts, add_node_to_list);
+
+	/* caller is responsible for freeing it */
+	return head;
+}
