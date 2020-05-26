@@ -282,6 +282,29 @@ static void *client_write(void *p)
 	return NULL;
 }
 
+void request_channel_metadata(const char *chan)
+{
+	struct msg *m;
+	time_t now = time(NULL);
+
+	if (!(m = msg_alloc()))
+	{
+		fputs("Unable to queue TOPIC message from client\n", stderr);
+		return;
+	}
+	m->at = now;
+	snprintf(m->text, MAX_IRC_MSG, "TOPIC %s", chan);
+	msg_log_add(g_from_client, m);
+	if (!(m = msg_alloc()))
+	{
+		fputs("Unable to queue NAMES message from client\n", stderr);
+		return;
+	}
+	m->at = now;
+	snprintf(m->text, MAX_IRC_MSG, "NAMES %s", chan);
+	msg_log_add(g_from_client, m);
+}
+
 /* if this fails it calls exit, not pthread_exit because there's
  * no reason to live if you're blocked from ever accepting clients
  */
@@ -358,6 +381,17 @@ void client_read(struct main_config *cfg)
 			pthread_create(&client_write_thread, NULL,
 					client_write, accepted_tls);
 
+			struct set_list *cs = set_to_list(&g_active_channels);
+			while (!SLIST_EMPTY(cs))
+			{
+				struct set_list_item *c = SLIST_FIRST(cs);
+				SLIST_REMOVE_HEAD(cs, link);
+
+				request_channel_metadata(c->key);
+				free(c->key);
+				free(c);
+			}
+
 			while ((amt_read = tls_read(accepted_tls, msg, MAX_IRC_MSG)) > 0)
 			{
 				char *line;
@@ -383,24 +417,8 @@ void client_read(struct main_config *cfg)
 						{
 							if (set_contains(&g_active_channels, chan))
 							{
-								/* already joined, so get TOPIC and NAMES for client */
-								if (!(m = msg_alloc()))
-								{
-									fputs("Unable to queue TOPIC message from client\n", stderr);
-									continue;
-								}
-								m->at = time(NULL);
-								snprintf(m->text, MAX_IRC_MSG, "TOPIC %s", chan);
-								msg_log_add(g_from_client, m);
-
-								if (!(m = msg_alloc()))
-								{
-									fputs("Unable to queue NAMES message from client\n", stderr);
-									continue;
-								}
-								m->at = time(NULL);
-								snprintf(m->text, MAX_IRC_MSG, "NAMES %s", chan);
-								msg_log_add(g_from_client, m);
+								/* already joined, refresh for client */
+								request_channel_metadata(chan);
 							}
 							else
 							{
