@@ -376,86 +376,86 @@ void client_read(struct main_config *cfg)
 		}
 
 		caps = client_auth(accepted_tls, cfg->local_user, cfg->local_pass);
-		if (!caps.error)
+		if (caps.error)
+			continue;
+
+		pthread_create(&client_write_thread, NULL,
+				client_write, accepted_tls);
+
+		struct set_list *cs = set_to_list(&g_active_channels);
+		while (!SLIST_EMPTY(cs))
 		{
-			pthread_create(&client_write_thread, NULL,
-					client_write, accepted_tls);
+			struct set_list_item *c = SLIST_FIRST(cs);
+			SLIST_REMOVE_HEAD(cs, link);
 
-			struct set_list *cs = set_to_list(&g_active_channels);
-			while (!SLIST_EMPTY(cs))
+			request_channel_metadata(c->key);
+			free(c->key);
+			free(c);
+		}
+
+		while ((amt_read = tls_read(accepted_tls, msg, MAX_IRC_MSG)) > 0)
+		{
+			char *line;
+			struct msg *m;
+
+			msg[amt_read] = '\0';
+			window_fill(w, msg);
+			while ((line = window_next(w)) != NULL)
 			{
-				struct set_list_item *c = SLIST_FIRST(cs);
-				SLIST_REMOVE_HEAD(cs, link);
-
-				request_channel_metadata(c->key);
-				free(c->key);
-				free(c);
-			}
-
-			while ((amt_read = tls_read(accepted_tls, msg, MAX_IRC_MSG)) > 0)
-			{
-				char *line;
-				struct msg *m;
-
-				msg[amt_read] = '\0';
-				window_fill(w, msg);
-				while ((line = window_next(w)) != NULL)
+				if (strncmp(line, "QUIT ", 5) == 0)
+					continue; /* client may quit, but we don't */
+				if (strncmp(line, "PRIVMSG NickServ", 16) == 0)
+					continue; /* nope, we use SASL */
+				if (strncmp(line, "JOIN ", 5) == 0)
 				{
-					if (strncmp(line, "QUIT ", 5) == 0)
-						continue; /* client may quit, but we don't */
-					if (strncmp(line, "PRIVMSG NickServ", 16) == 0)
-						continue; /* nope, we use SASL */
-					if (strncmp(line, "JOIN ", 5) == 0)
+					/* remove keys list (after space) if exists */
+					line[5+strcspn(line+5, " ")] = '\0';
+					/* loop over channels */
+					char *chan, *state = NULL;
+					for (chan = strtok_r(line+5, ",", &state);
+						 chan;
+						 chan = strtok_r(NULL, ",", &state))
 					{
-						/* remove keys list (after space) if exists */
-						line[5+strcspn(line+5, " ")] = '\0';
-						/* loop over channels */
-						char *chan, *state = NULL;
-						for (chan = strtok_r(line+5, ",", &state);
-						     chan;
-						     chan = strtok_r(NULL, ",", &state))
+						if (set_contains(&g_active_channels, chan))
 						{
-							if (set_contains(&g_active_channels, chan))
-							{
-								/* already joined, refresh for client */
-								request_channel_metadata(chan);
-							}
+							/* already joined, refresh for client */
+							request_channel_metadata(chan);
+						}
+						else
+						{
+							/* strdup is POSIX, not C99, and
+							 * strndup is not available in POSIX.1-2001 */
+							char *chandup = strdup(chan);
+							if (chandup)
+								set_add(&g_active_channels, chandup);
 							else
-							{
-								/* strdup is POSIX, not C99, and
-								 * strndup is not available in POSIX.1-2001 */
-								char *chandup = strdup(chan);
-								if (chandup)
-									set_add(&g_active_channels, chandup);
-								else
-									fputs("Unable to duplicate channel name\n", stderr);
-							}
+								fputs("Unable to duplicate channel name\n", stderr);
 						}
 					}
-					else if (strncmp(line, "PART ", 5) == 0)
-					{
-						/* remove part message (after space) if exists */
-						line[5+strcspn(line+5, " ")] = '\0';
-						/* loop over channels */
-						char *chan, *state = NULL;
-						for (chan = strtok_r(line+5, ",", &state);
-						     chan;
-						     chan = strtok_r(NULL, ",", &state))
-						{
-							set_rm(&g_active_channels, chan);
-						}
-					}
-					
-					if (!(m = msg_alloc()))
-					{
-						fputs("Unable to queue message from client", stderr);
-						continue;
-					}
-					m->at = time(NULL);
-					strcpy(m->text, line);
-					printf("-> %s\n", line);
-					msg_log_add(g_from_client, m);
 				}
+				else if (strncmp(line, "PART ", 5) == 0)
+				{
+					/* remove part message (after space) if exists */
+					line[5+strcspn(line+5, " ")] = '\0';
+					/* loop over channels */
+					char *chan, *state = NULL;
+					for (chan = strtok_r(line+5, ",", &state);
+						 chan;
+						 chan = strtok_r(NULL, ",", &state))
+					{
+						set_rm(&g_active_channels, chan);
+					}
+				}
+				
+				if (!(m = msg_alloc()))
+				{
+					fputs("Unable to queue message from client", stderr);
+					continue;
+				}
+				m->at = time(NULL);
+				strcpy(m->text, line);
+				printf("-> %s\n", line);
+				msg_log_add(g_from_client, m);
 			}
 		}
 
