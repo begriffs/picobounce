@@ -30,7 +30,7 @@ bool set_contains(struct set *s, char *key)
 {
 	bool ret;
 	pthread_mutex_lock(&s->mut);
-	ret = tfind(key, s->elts, (cmpfn)strcmp) != NULL;
+	ret = tfind(key, &s->elts, (cmpfn)strcmp) != NULL;
 	pthread_mutex_unlock(&s->mut);
 	return ret;
 }
@@ -39,7 +39,7 @@ bool set_add(struct set *s, char *key)
 {
 	bool ret;
 	pthread_mutex_lock(&s->mut);
-	ret = tsearch(key, s->elts, (cmpfn)strcmp);
+	ret = tsearch(key, &s->elts, (cmpfn)strcmp);
 	pthread_mutex_unlock(&s->mut);
 	return ret;
 }
@@ -48,10 +48,10 @@ void set_rm(struct set *s, char *key)
 {
 	void *elt;
 	pthread_mutex_lock(&s->mut);
-	elt = tfind(key, s->elts, (cmpfn)strcmp);
+	elt = tfind(key, &s->elts, (cmpfn)strcmp);
 	if (elt)
 	{
-		tdelete(key, elt, (cmpfn)strcmp);
+		tdelete(key, &elt, (cmpfn)strcmp);
 		free(elt);
 	}
 	pthread_mutex_unlock(&s->mut);
@@ -74,13 +74,14 @@ static void
 add_node_to_list(const void *ptr, VISIT order, int level)
 {
 	(void)level;
-	
+	char * const *keyp = ptr;
+
 	if (order == postorder || order == leaf)
 	{
 		struct set_list *head = pthread_getspecific(tsd_key);
 		struct set_list_item *item = malloc(sizeof(*item));
 
-		item->key = strdup(ptr);
+		item->key = strdup(*keyp);
 		SLIST_INSERT_HEAD(head, item, link);
 	}
 }
