@@ -1,5 +1,8 @@
 picobounce
 config.mk
-*.o
+*.[oa]
 *.crt
 *.key
+*.lex.*
+*.tab.*
+tags
