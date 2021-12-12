@@ -4,21 +4,18 @@
 #include <pthread.h>
 
 #include "irc.h"
-#include "vendor/queue.h"
+#include "derp/list.h"
 
 struct msg
 {
 	time_t at;
 	char   text[MAX_IRC_MSG+1];
-	TAILQ_ENTRY(msg) msgs;
 };
-
-TAILQ_HEAD(msg_log_head, msg);
 
 struct msg_log
 {
-	struct msg_log_head head;
-	size_t count, max;
+	list *msgs;
+	size_t max;
 
 	pthread_mutex_t mutex;
 	pthread_cond_t  ready;

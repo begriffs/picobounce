@@ -20,7 +20,7 @@
 #define STR(macro) QUOTE(macro)
 
 struct msg_log *g_from_upstream, *g_from_client;
-struct set g_active_channels = EMPTY_SET;
+struct set *g_active_channels;
 
 void upstream_read(struct main_config *cfg);
 void client_read(struct main_config *cfg);
@@ -42,6 +42,12 @@ int main(int argc, const char **argv)
 		return EXIT_FAILURE;
 	}
 
+	g_active_channels = set_new();
+	if (!g_active_channels)
+	{
+		fputs("Unable to allocate channel list\n", stderr);
+		return EXIT_FAILURE;
+	}
 	g_from_upstream = msg_log_alloc(cfg->max_messages);
 	g_from_client = msg_log_alloc(NO_MESSAGE_LIMIT);
 	if (!g_from_upstream || !g_from_client)
@@ -221,7 +227,7 @@ void upstream_read(struct main_config *cfg)
 							"KICK %" STR(MAX_IRC_MSG) "s %" STR(MAX_IRC_MSG) "s",
 						    arg1, arg2)
 						 && strcmp(cfg->nick, arg2) == 0)
-					set_rm(&g_active_channels, arg1);
+					set_rm(g_active_channels, arg1);
 				else
 				{
 					if (!(m	= msg_alloc()))
@@ -239,7 +245,7 @@ void upstream_read(struct main_config *cfg)
 		pthread_join(upstream_write_thread, NULL);
 		tls_close(tls);
 		tls_free(tls);
-		set_rm_all(&g_active_channels);
+		set_rm_all(g_active_channels);
 	}
 }
 
@@ -382,15 +388,12 @@ void client_read(struct main_config *cfg)
 		pthread_create(&client_write_thread, NULL,
 				client_write, accepted_tls);
 
-		struct set_list *cs = set_to_list(&g_active_channels);
-		while (!SLIST_EMPTY(cs))
+		list *cs = set_to_list(g_active_channels);
+		while (!l_is_empty(cs))
 		{
-			struct set_list_item *c = SLIST_FIRST(cs);
-			SLIST_REMOVE_HEAD(cs, link);
-
-			request_channel_metadata(c->key);
-			free(c->key);
-			free(c);
+			char *chan = l_remove_first(cs);
+			request_channel_metadata(chan);
+			free(chan);
 		}
 
 		while ((amt_read = tls_read(accepted_tls, msg, MAX_IRC_MSG)) > 0)
@@ -416,7 +419,7 @@ void client_read(struct main_config *cfg)
 						 chan;
 						 chan = strtok_r(NULL, ",", &state))
 					{
-						if (set_contains(&g_active_channels, chan))
+						if (set_contains(g_active_channels, chan))
 						{
 							/* already joined, refresh for client */
 							request_channel_metadata(chan);
@@ -427,7 +430,7 @@ void client_read(struct main_config *cfg)
 							 * strndup is not available in POSIX.1-2001 */
 							char *chandup = strdup(chan);
 							if (chandup)
-								set_add(&g_active_channels, chandup);
+								set_add(g_active_channels, chandup);
 							else
 								fputs("Unable to duplicate channel name\n", stderr);
 						}
@@ -443,7 +446,7 @@ void client_read(struct main_config *cfg)
 						 chan;
 						 chan = strtok_r(NULL, ",", &state))
 					{
-						set_rm(&g_active_channels, chan);
+						set_rm(g_active_channels, chan);
 					}
 				}
 				

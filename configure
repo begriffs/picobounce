@@ -2,6 +2,13 @@
 
 rm -f config.mk
 
+pkg-config --print-errors 'libderp-static >= 0.1.0'
+cat >> config.mk <<-EOF
+	CFLAGS += $(pkg-config --cflags libderp-static)
+	LDFLAGS += $(pkg-config --libs-only-L libderp-static)
+	LDLIBS += $(pkg-config --libs-only-l libderp-static)
+EOF
+
 # LibreSSL
 case "$(uname -s)" in
 	OpenBSD)
