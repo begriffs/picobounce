@@ -4,9 +4,7 @@
 #define YYSTYPE IRCV3_STYPE
 #include "irc.tab.h"
 #include "irc.lex.h"
-
-#include <derp/treemap.h>
-#include <derp/list.h>
+#include "irc.h"
 
 struct irc_message *message_read(FILE *f)
 {
@@ -66,4 +64,20 @@ void message_print(struct irc_message *m, FILE *f)
 		for (list_item *li = l_first(m->params); li; li = li->next)
 			fprintf(f, " %s\n", (char*)li->data);
 	fputc('\n', f);
+}
+
+void message_free(struct irc_message *m)
+{
+	if (!m)
+		return;
+	tm_free(m->tags);
+	if (m->prefix)
+	{
+		free(m->prefix->host);
+		free(m->prefix->nick);
+		free(m->prefix->user);
+		free(m->prefix);
+	}
+	free(m->command);
+	l_free(m->params);
 }

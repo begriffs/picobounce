@@ -16,15 +16,15 @@ include config.mk
 irc.a : irc.tab.o irc.lex.o irc.o
 	ar r $@ $?
 
-irc.tab.h irc.tab.c : irc.y
-	$(YACC) $(YFLAGS) -d -b irc $?
+irc.tab.h irc.tab.c : irc.y irc.h
+	$(YACC) $(YFLAGS) -d -b irc irc.y
 
 irc.lex.o : irc.tab.h irc.lex.c
 
 irc.lex.c irc.lex.h : irc.l
 	$(LEX) $(LFLAGS) --header-file=irc.lex.h --outfile=irc.lex.c irc.l
 
-irc.o : irc.c irc.tab.h irc.lex.h
+irc.o : irc.c irc.tab.h irc.lex.h irc.h
 	$(CC) $(CFLAGS) -c irc.c
 
 picobounce : picobounce.c $(OBJS)

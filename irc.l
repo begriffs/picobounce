@@ -101,20 +101,10 @@ done:
 
 %%
 
+/* suppress unused param warnings */
 void *ircv3_alloc(size_t size, void *yyscanner)
-{
-    (void) yyscanner;
-    return malloc(size);
-}
-
+{ (void) yyscanner; return malloc(size); }
 void *ircv3_realloc(void * ptr, size_t size, void *yyscanner)
-{
-    (void) yyscanner;
-    return realloc(ptr, size);
-}
-
+{ (void) yyscanner; return realloc(ptr, size); }
 void ircv3_free(void *ptr, void *yyscanner)
-{
-    (void) yyscanner;
-    free(ptr);
-}
+{ (void) yyscanner; free(ptr); }

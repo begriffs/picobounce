@@ -3,42 +3,17 @@
 %define api.prefix {ircv3_}
 
 %code top {
-	#define _XOPEN_SOURCE 600
-	#include <assert.h>
 	#include <stdio.h>
 	#include <stdlib.h>
-	#include <stdbool.h>
 }
 
 %code requires {
-	#include <derp/list.h>
-	#include <derp/treemap.h>
-
-	struct prefix
-	{
-		char *host;
-		char *nick;
-		char *user;
-	};
-
-	struct irc_message
-	{
-		treemap *tags;
-		struct prefix *prefix;
-		char *command;
-		list *params;
-	};
+	#include "irc.h"
 }
 
 %code {
     int ircv3_error(void *, char const *, const void *);
     int ircv3_lex(void *lval, const void *);
-}
-
-%code provides {
-	struct irc_message *message_read(FILE *f);
-	void                message_print(struct irc_message *m, FILE *f);
-	void                message_free(struct irc_message *m);
 }
 
 %union
@@ -130,21 +105,5 @@ int ircv3_error(void *yylval, char const *msg, const void *s)
 {
 	(void)yylval;
 	(void)s;
-	return fprintf(stderr, "%s\n", msg);
-}
-
-void message_free(struct irc_message *m)
-{
-	if (!m)
-		return;
-	tm_free(m->tags);
-	if (m->prefix)
-	{
-		free(m->prefix->host);
-		free(m->prefix->nick);
-		free(m->prefix->user);
-		free(m->prefix);
-	}
-	free(m->command);
-	l_free(m->params);
+	return fprintf(stderr, "IRCv3 parser: %s\n", msg);
 }
