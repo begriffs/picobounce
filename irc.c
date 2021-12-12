@@ -1,3 +1,7 @@
+#include <assert.h>
+#include <stdio.h>
+
+#define YYSTYPE IRCV3_STYPE
 #include "irc.tab.h"
 #include "irc.lex.h"
 
@@ -9,12 +13,12 @@ struct irc_message *message_read(FILE *f)
 	struct irc_message *m = NULL;
 	yyscan_t scanner;
 
-	if (yylex_init(&scanner) != 0)
+	if (ircv3_lex_init(&scanner) != 0)
 		return NULL;
-	yyset_in(f, scanner);
+	ircv3_set_in(f, scanner);
 
-	yyparse(&m, scanner);
-	yylex_destroy(scanner);
+	ircv3_parse(&m, scanner);
+	ircv3_lex_destroy(scanner);
 	return m;
 }
 

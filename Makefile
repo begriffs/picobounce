@@ -17,15 +17,15 @@ irc.a : irc.tab.o irc.lex.o irc.o
 	ar r $@ $?
 
 irc.tab.h irc.tab.c : irc.y
-	$(YACC) -d -b irc $?
+	$(YACC) $(YFLAGS) -d -b irc $?
 
 irc.lex.o : irc.tab.h irc.lex.c
 
-irc.lex.c : irc.l
-	$(LEX) -t $? > $@
+irc.lex.c irc.lex.h : irc.l
+	$(LEX) $(LFLAGS) --header-file=irc.lex.h --outfile=irc.lex.c irc.l
 
 irc.o : irc.c irc.tab.h irc.lex.h
-	$(CC) $(CFLAGS) -o $@ irc.c
+	$(CC) $(CFLAGS) -c irc.c
 
 picobounce : picobounce.c $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ picobounce.c $(OBJS) $(LDLIBS)
