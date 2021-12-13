@@ -76,7 +76,7 @@ void irc_message_print(struct irc_message *m, FILE *f)
 
 	if (!l_is_empty(m->params))
 		for (list_item *li = l_first(m->params); li; li = li->next)
-			fprintf(f, " %s", (char*)li->data);
+			fprintf(f, "%s%s", li->next ? " " : " :", (char*)li->data);
 	fputc('\n', f);
 }
 
