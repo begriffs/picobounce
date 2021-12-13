@@ -2,6 +2,8 @@
 %define api.pure true
 %define api.prefix {ircv3_}
 
+%define parse.trace
+
 %code top {
 	#include <stdio.h>
 	#include <stdlib.h>
@@ -105,5 +107,5 @@ int ircv3_error(void *yylval, char const *msg, const void *s)
 {
 	(void)yylval;
 	(void)s;
-	return fprintf(stderr, "IRCv3 parser: %s\n", msg);
+	return fprintf(stderr, "IRCv3 ERROR: %s\n", msg);
 }

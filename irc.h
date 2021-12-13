@@ -20,9 +20,9 @@ struct irc_message
 	list *params;
 };
 
-struct irc_message *message_read(FILE *f);
-void                message_print(struct irc_message *m, FILE *f);
-void                message_free(struct irc_message *m);
+struct irc_message *irc_message_read(FILE *f);
+void                irc_message_print(struct irc_message *m, FILE *f);
+void                irc_message_free(struct irc_message *m);
 
 /*
 #include <stdbool.h>

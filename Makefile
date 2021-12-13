@@ -2,7 +2,7 @@
 
 OBJS = config.o irc.o messages.o set.o window.o
 
-CFLAGS = -std=c99 -pedantic -Wall -Wextra -Wshadow -Wno-missing-braces -D_POSIX_C_SOURCE=200112L -g
+CFLAGS = -std=c99 -pedantic -Wall -Wextra -Wshadow -Wno-missing-braces -D_POSIX_C_SOURCE=200809L -g
 LDLIBS = -lpthread
 
 .SUFFIXES :
@@ -12,6 +12,9 @@ YACC=bison
 LEX=flex
 
 include config.mk
+
+irc_auth : irc_auth.c irc.h irc.a
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ irc_auth.c irc.a $(LDLIBS)
 
 irc.a : irc.tab.o irc.lex.o irc.o
 	ar r $@ $?

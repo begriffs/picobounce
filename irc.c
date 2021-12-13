@@ -1,26 +1,40 @@
 #include <assert.h>
 #include <stdio.h>
 
+/* https://ircv3.net/specs/extensions/message-tags.html#size-limit */
+#define MAX_IRC_MSG  8191
+
 #define YYSTYPE IRCV3_STYPE
 #include "irc.tab.h"
 #include "irc.lex.h"
 #include "irc.h"
 
-struct irc_message *message_read(FILE *f)
+struct irc_message *irc_message_read(FILE *f)
 {
 	struct irc_message *m = NULL;
+	char *line = NULL;
+	size_t len = MAX_IRC_MSG;
 	yyscan_t scanner;
+    YY_BUFFER_STATE buf;
 
 	if (ircv3_lex_init(&scanner) != 0)
 		return NULL;
-	ircv3_set_in(f, scanner);
+	if (getline(&line, &len, f) < 0)
+	{
+		ircv3_lex_destroy(scanner);
+		return NULL;
+	}
+    buf = ircv3__scan_string(line, scanner);
 
 	ircv3_parse(&m, scanner);
+
+    ircv3__delete_buffer(buf, scanner);
 	ircv3_lex_destroy(scanner);
+	free(line);
 	return m;
 }
 
-void message_print(struct irc_message *m, FILE *f)
+void irc_message_print(struct irc_message *m, FILE *f)
 {
 	assert(m);
 	if (m->tags)
@@ -62,11 +76,11 @@ void message_print(struct irc_message *m, FILE *f)
 
 	if (!l_is_empty(m->params))
 		for (list_item *li = l_first(m->params); li; li = li->next)
-			fprintf(f, " %s\n", (char*)li->data);
+			fprintf(f, " %s", (char*)li->data);
 	fputc('\n', f);
 }
 
-void message_free(struct irc_message *m)
+void irc_message_free(struct irc_message *m)
 {
 	if (!m)
 		return;
