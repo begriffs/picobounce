@@ -1,0 +1,7 @@
+#!/bin/sh
+
+rm -f send0 recv0
+mkfifo send0 recv0
+
+nc -c irc.libera.chat 6697 < send0 | tee -a recv0.log > recv0 &
+./irc_auth creds < recv0 | tee send0.log > send0

@@ -6,3 +6,4 @@ config.mk
 *.lex.*
 *.tab.*
 tags
+creds
