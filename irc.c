@@ -1,4 +1,6 @@
 #include <assert.h>
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 /* https://ircv3.net/specs/extensions/message-tags.html#size-limit */
@@ -94,4 +96,24 @@ void irc_message_free(struct irc_message *m)
 	}
 	free(m->command);
 	l_free(m->params);
+}
+
+bool irc_message_is(struct irc_message *m, char *cmd, int n, ...)
+{
+	va_list ap;
+	list_item *p;
+	bool good = true;
+
+	if (strcmp(m->command, cmd) != 0 || l_length(m->params) < (size_t)n)
+		return false;
+
+	va_start(ap, n);
+	for (p = l_first(m->params); n > 0; n--, p = p->next)
+		if (strcmp(p->data, va_arg(ap, char*)) != 0)
+		{
+			good = false;
+			break;
+		}
+	va_end(ap);
+	return good;
 }

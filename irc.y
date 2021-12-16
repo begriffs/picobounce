@@ -14,7 +14,7 @@
 }
 
 %code {
-    int ircv3_error(void *, char const *, const void *);
+	int ircv3_error(void *yylval, const void *s, char const *msg);
     int ircv3_lex(void *lval, const void *);
 }
 
@@ -103,7 +103,7 @@ params :
 
 %%
 
-int ircv3_error(void *yylval, char const *msg, const void *s)
+int ircv3_error(void *yylval, const void *s, char const *msg)
 {
 	(void)yylval;
 	(void)s;
