@@ -40,6 +40,9 @@
 %type <map> tags
 %type <list> params
 
+%printer { fprintf(yyo, "\"%s\"", $$); } <str>
+%printer { fprintf(yyo, "%zu", l_length($$)); } <list>
+
 %%
 
 final :
@@ -63,7 +66,7 @@ prefixed_message :
 ;
 
 message :
-  COMMAND[cmd] SPACE params[ps] {
+  COMMAND[cmd] params[ps] {
 	struct irc_message *m = malloc(sizeof *m);
 	*m = (struct irc_message) {
 		.command=$cmd, .params=$ps
@@ -86,12 +89,12 @@ tags :
 ;
 
 params :
-  TRAILING {
+  SPACE TRAILING {
 	$$ = l_new();
 	l_dtor($$, derp_free, NULL);
-	l_prepend($$, $1);
+	l_prepend($$, $2);
   }
-| MIDDLE[mid] SPACE params[ps] {
+| SPACE MIDDLE[mid] params[ps] {
 	l_prepend($ps, $mid);
 	$$ = $ps;
   }
