@@ -64,7 +64,7 @@ set_to_list(struct set *s)
 
 	pthread_mutex_lock(&s->mut);
 	i = tm_iter_begin(s->elts);
-	while (p = tm_iter_next(i))
+	while ((p = tm_iter_next(i)) != NULL)
 		l_append(l, p->k);
 	pthread_mutex_unlock(&s->mut);
 	tm_iter_free(i);
