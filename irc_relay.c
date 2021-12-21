@@ -21,7 +21,7 @@ int main(int argc, char **argv)
 {
 	pthread_t srv_read_thread;
 
-	if (argc != 2)
+	if (argc != 3)
 	{
 		fprintf(stderr, "Usage: %s fifo-from-client fifo-to-client\n", *argv);
 		return EXIT_FAILURE;
@@ -57,6 +57,8 @@ int main(int argc, char **argv)
 	{
 		if (irc_message_is(m, "QUIT", 0))
 			; /* client may quit, but we don't */
+		if (irc_message_is(m, "NICK", 0) || irc_message_is(m, "USER", 0))
+			; /* ahem, we'll be the judge of that */
 		else if (irc_message_is(m, "PRIVMSG", 1, "NickServ"))
 			; /* nope, we use SASL */
 		else if (irc_message_is(m, "JOIN", 0))
@@ -139,18 +141,4 @@ char *iso8601time(void)
 	snprintf(iso, sizeof iso, "%s.%03LfZ", stamp,
 	         ((long double)tv.tv_nsec) / 1e6);
 	return strdup(iso);
-/*
- * The right way to do this is to use e.g. clock_gettime(3) with e.g.
- * CLOCK_REALTIME (if you want the wall time) to get a struct timespec with a
- * time_t in tv_sec and nanoseconds in tv_nsec. And then you pass the .tv_sec
- * time_t to strftime to format the second precision part. And then you use
- * snprintf to format .tv_nsec as ".%09ld" to make the subprecision precision
- * part
- *
- * Naturally to get the milliseconds you would .tv_nsec / 1000000 and .%03ld
- * tv_nsec is type long btw
- *
- * You can use localtime_r to convert the time_t to struct tm for strftime if
- * you want the local timezone, or gmtime_r if you want UTC
- */
 }

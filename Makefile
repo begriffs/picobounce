@@ -15,13 +15,15 @@ include config.mk
 
 ### programs ###
 
-all : irc_auth irc_relay
+all : irc_auth irc_relay tailbuf
 
 irc_auth : irc_auth.c irc.h irc.a
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ irc_auth.c irc.a $(LDLIBS)
 
 irc_relay : irc_relay.c irc.h irc.a set.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ irc_relay.c set.o irc.a $(LDLIBS)
+
+tailbuf : tailbuf.c
 
 ### message parsing ###
 

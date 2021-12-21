@@ -1,24 +1,28 @@
 #!/bin/sh
 set -o pipefail
 
+trap exit TERM INT
+
 rm -f {to,from}_{srv,cli}
 mkfifo {to,from}_{srv,cli}
 
 while true
 do
 	### establish server conn and pipes
-	nc -c irc.libera.chat 6697 < to_srv | \
-		tee -a from_srv.log > from_srv &
+#	nc -c irc.libera.chat 6697 < to_srv | \
+#		tee -a from_srv.log > from_srv &
+	sh -c "nc -c irc.libera.chat 6697 < to_srv | tee -a from_srv.log > from_srv" &
 
-	./irc_auth creds < from_srv | \
-		tee to_srv.log > to_srv
+#	./irc_auth creds < from_srv | \
+#		tee to_srv.log > to_srv
+	./irc_auth creds < from_srv | ./tailbuf > to_srv
 	if [ $? -ne 0 ]; then exit 1; fi
 
 	### establish client pipes, wait for conn
-	nc -lk 3000 < to_cli | from_cli &
+	sh -c "nc -l -k 3000 < to_cli | tee -a from_cli.log > from_cli" &
 
-	./irc_relay from_cli to_cli < from_srv | \
-		tee -a to_srv.log > to_srv
+	echo running relay between pipes
+	./irc_relay from_cli to_cli < from_srv | tee -a to_srv.log to_srv
 
 	### block until server conn drops
 	wait %1

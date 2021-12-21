@@ -15,7 +15,7 @@ The configure script will detect whatever dependencies are necessary on your
 system and create config.mk with the customizations.
 
 ```sh
-./configure
+PKG_CONFIG_PATH=/usr/local/libderp-dev-0.1.0 ./configure
 make
 ```
 

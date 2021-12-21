@@ -5,5 +5,10 @@ config.mk
 *.key
 *.lex.*
 *.tab.*
+*.log
+*.core
 tags
 creds
+irc_auth
+irc_relay
+tailbuf
