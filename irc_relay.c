@@ -37,10 +37,8 @@ int main(int argc, char **argv)
 	to_srv = stdout;
 
 	/* ensure no delay after messages */
-	setvbuf(from_srv, NULL, _IOLBF, 0);
-	setvbuf(to_srv,   NULL, _IOLBF, 0);
-	setvbuf(from_cli, NULL, _IOLBF, 0);
-	setvbuf(to_cli,   NULL, _IOLBF, 0);
+	setvbuf(to_srv, NULL, _IOLBF, 0);
+	setvbuf(to_cli, NULL, _IOLBF, 0);
 
 	active_chans = set_new();
 	if (!active_chans)
@@ -55,9 +53,15 @@ int main(int argc, char **argv)
 	struct irc_message *m;
 	while ((m = irc_message_read(from_cli)) != NULL)
 	{
-		if (irc_message_is(m, "QUIT", 0))
+		if (irc_message_is(m, "PING", 0))
+		{
+			/* bounce back to client as PONG, same params */
+			strcpy(m->command, "PONG");
+			irc_message_print(m, to_cli);
+		}
+		else if (irc_message_is(m, "QUIT", 0))
 			; /* client may quit, but we don't */
-		if (irc_message_is(m, "NICK", 0) || irc_message_is(m, "USER", 0))
+		else if (irc_message_is(m, "NICK", 0) || irc_message_is(m, "USER", 0))
 			; /* ahem, we'll be the judge of that */
 		else if (irc_message_is(m, "PRIVMSG", 1, "NickServ"))
 			; /* nope, we use SASL */

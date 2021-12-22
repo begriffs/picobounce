@@ -1,12 +1,15 @@
 #!/bin/sh
 set -o pipefail
 
-trap exit TERM INT
-
+echo creating ringbuffer fifos
+# clear fifos from previous runs
 rm -f {to,from}_{srv,cli}.{in,out}
+# attend data in the queues
 for x in {to,from}_{srv,cli}; do
 	./ringfifo $x &
 done
+# stop pushing data on exit
+trap 'kill %1 %2 %3 %4; exit' TERM INT EXIT
 
 # wait for the .in and .out fifos to get created
 # TODO: find a non-sleep way
@@ -14,22 +17,23 @@ sleep 1
 
 while true
 do
-	### establish server conn and pipes
-#	nc -c irc.libera.chat 6697 < to_srv | \
-#		tee -a from_srv.log > from_srv &
-	nc -c irc.libera.chat 6697 < to_srv.out > from_srv.in &
+	echo connecting to server
+	sh -c 'nc -c irc.libera.chat 6697 < to_srv.out | tee from_srv.log > from_srv.in' &
+	server_pid=$!
 
-#	./irc_auth creds < from_srv | \
-#		tee to_srv.log > to_srv
-	./irc_auth creds < from_srv.out > to_srv.in
+	echo authenticating
+	./irc_auth creds < from_srv.out | tee to_srv.log > to_srv.in
 	if [ $? -ne 0 ]; then exit 1; fi
 
-	### establish client pipes, wait for conn
-	nc -l -k 3000 < to_cli.out > from_cli.in &
+	echo open for client connections
+	sh -c 'nc -l -k 3000 < to_cli.out | tee -a from_cli.log from_cli.in' &
+	client_pid=$!
 
 	echo running relay between pipes
-	./irc_relay from_cli.in to_cli.out < from_srv.out > to_srv.in
+	sh -c './irc_relay from_cli.in to_cli.out < from_srv.out | tee -a to_srv.log to_srv.in' &
+	relay_pid=$!
 
-	### block until server conn drops
-	wait %1
+	wait $server_pid
+
+	kill $client_pid $relay_pid
 done
