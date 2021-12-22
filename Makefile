@@ -15,7 +15,7 @@ include config.mk
 
 ### programs ###
 
-all : irc_auth irc_relay tailbuf
+all : irc_auth irc_relay ringfifo
 
 irc_auth : irc_auth.c irc.h irc.a
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ irc_auth.c irc.a $(LDLIBS)
@@ -23,7 +23,7 @@ irc_auth : irc_auth.c irc.h irc.a
 irc_relay : irc_relay.c irc.h irc.a set.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ irc_relay.c set.o irc.a $(LDLIBS)
 
-tailbuf : tailbuf.c
+ringfifo : ringfifo.c
 
 ### message parsing ###
 
@@ -46,4 +46,4 @@ irc.o : irc.c irc.tab.h irc.lex.h irc.h
 set.o : set.c set.h
 
 clean :
-	rm -f irc_auth irc_relay *.o *.a *.lex.[ch] *.tab.[ch]
+	rm -f irc_auth irc_relay ringfifo *.o *.a *.lex.[ch] *.tab.[ch]

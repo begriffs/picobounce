@@ -3,26 +3,32 @@ set -o pipefail
 
 trap exit TERM INT
 
-rm -f {to,from}_{srv,cli}
-mkfifo {to,from}_{srv,cli}
+rm -f {to,from}_{srv,cli}.{in,out}
+for x in {to,from}_{srv,cli}; do
+	./ringfifo $x &
+done
+
+# wait for the .in and .out fifos to get created
+# TODO: find a non-sleep way
+sleep 1
 
 while true
 do
 	### establish server conn and pipes
 #	nc -c irc.libera.chat 6697 < to_srv | \
 #		tee -a from_srv.log > from_srv &
-	sh -c "nc -c irc.libera.chat 6697 < to_srv | tee -a from_srv.log > from_srv" &
+	nc -c irc.libera.chat 6697 < to_srv.out > from_srv.in &
 
 #	./irc_auth creds < from_srv | \
 #		tee to_srv.log > to_srv
-	./irc_auth creds < from_srv | ./tailbuf > to_srv
+	./irc_auth creds < from_srv.out > to_srv.in
 	if [ $? -ne 0 ]; then exit 1; fi
 
 	### establish client pipes, wait for conn
-	sh -c "nc -l -k 3000 < to_cli | tee -a from_cli.log > from_cli" &
+	nc -l -k 3000 < to_cli.out > from_cli.in &
 
 	echo running relay between pipes
-	./irc_relay from_cli to_cli < from_srv | tee -a to_srv.log to_srv
+	./irc_relay from_cli.in to_cli.out < from_srv.out > to_srv.in
 
 	### block until server conn drops
 	wait %1
