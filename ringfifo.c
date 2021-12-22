@@ -56,7 +56,7 @@ void *write_lines(void *unused)
 					pthread_mutex_lock(&mutex);
 					/* Put line back, we couldn't send it.
 					 *
-					 * TODO: ensure it does get out of order, and
+					 * TODO: ensure it doesn't get out of order, and
 					 * also that this doesn't throw off our max */
 					l_prepend(lines, line);
 					pthread_mutex_unlock(&mutex);
@@ -80,7 +80,7 @@ void *write_lines(void *unused)
 int main(int argc, char **argv)
 {
 	size_t maxlen = argc < 3
-		? 1024*1024
+		? DEFAULT_MAX_LINES
 		: strtol(argv[2], NULL, 10);
 	lines = l_new();
 
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 	while (1)
 	{
 		FILE *in;
-		char line[DEFAULT_MAX_LINES+1];
+		char line[BUFSIZ+1];
 
 		if ((in = fopen(name_in, "r")) == NULL)
 		{
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 			return EXIT_FAILURE;
 		}
 		setvbuf(in, NULL, _IOLBF, 0);
-		while (fgets(line, DEFAULT_MAX_LINES, in))
+		while (fgets(line, BUFSIZ, in))
 		{
 			pthread_mutex_lock(&mutex);
 			if (maxlen != 0 && 1+l_length(lines) > maxlen)
