@@ -1,5 +1,6 @@
 #!/bin/sh
 set -o pipefail
+trap exit TERM INT EXIT
 
 echo creating ringbuffer fifos
 # clear fifos from previous runs
@@ -8,8 +9,6 @@ rm -f {to,from}_{srv,cli}.{in,out}
 for x in {to,from}_{srv,cli}; do
 	./ringfifo $x &
 done
-# stop pushing data on exit
-trap 'kill %1 %2 %3 %4; exit' TERM INT EXIT
 
 # wait for the .in and .out fifos to get created
 # TODO: find a non-sleep way
