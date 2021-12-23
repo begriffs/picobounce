@@ -15,33 +15,33 @@ int main(int argc, char **argv)
 {
 	struct irc_message *m;
 	bool first_message = true;
-	FILE *fcreds;
+	FILE *fpass;
 	size_t max_cred_len = 100;
 	char *user, *pass;
 
 	//ircv3_debug = 1;
 
-	if (argc != 2)
+	if (argc != 3)
 	{
-		fprintf(stderr, "Usage: %s credsfile\n", *argv);
+		fprintf(stderr, "Usage: %s nick passfile\n", *argv);
 		return EXIT_FAILURE;
 	}
-	if ((fcreds = fopen(argv[1], "r")) == NULL)
+	user = argv[1];
+	if ((fpass = fopen(argv[2], "r")) == NULL)
 	{
 		fprintf(stderr,
 				"Can't open credentials file: \"%s\"\n", argv[1]);
 		return EXIT_FAILURE;
 	}
 
-	if (getline(&user, &max_cred_len, fcreds) < 1 ||
-		getline(&pass, &max_cred_len, fcreds) < 1)
+	if (getline(&pass, &max_cred_len, fpass) < 1)
 	{
-		fprintf(stderr, "Failed to read username or password\n");
+		fprintf(stderr, "Failed to read password\n");
 		return EXIT_FAILURE;
 	}
-	user[strcspn(user, "\n")] = pass[strcspn(pass, "\n")] = '\0';
+	pass[strcspn(pass, "\n")] = '\0';
 
-	fclose(fcreds);
+	fclose(fpass);
 
 	setvbuf(stdout, NULL, _IOLBF, 0);
 

@@ -11,7 +11,7 @@
 FILE *from_cli, *to_cli,
 	 *from_srv, *to_srv;
 struct set *active_chans;
-char *nick;
+char *nick, *clientPrefix;
 
 void srv_read(void *unused);
 
@@ -21,16 +21,17 @@ int main(int argc, char **argv)
 {
 	pthread_t srv_read_thread;
 
-	if (argc != 3)
+	if (argc != 4)
 	{
-		fprintf(stderr, "Usage: %s fifo-from-client fifo-to-client\n", *argv);
+		fprintf(stderr, "Usage: %s nick fifo-from-client fifo-to-client\n", *argv);
 		return EXIT_FAILURE;
 	}
-	if (!(from_cli = fopen(argv[1], "r")) ||
-		!(to_cli   = fopen(argv[2], "w")) )
+	nick = argv[1];
+	if (!(from_cli = fopen(argv[2], "r")) ||
+		!(to_cli   = fopen(argv[3], "w")) )
 	{
 		fprintf(stderr, "Failed to open one of \"%s\" or \"%s\"\n",
-		        argv[1], argv[2]);
+		        argv[2], argv[3]);
 		return EXIT_FAILURE;
 	}
 	from_srv = stdin;
@@ -74,6 +75,8 @@ int main(int argc, char **argv)
 				if (set_contains(active_chans, chan))
 				{
 					/* already joined, refresh for client */
+					fprintf(to_cli, ":%s!singleuser@user/%s JOIN %s\n",
+						nick, nick, chan);
 					fprintf(to_srv, "TOPIC %s\n", chan);
 					fprintf(to_srv, "NAMES %s\n", chan);
 				}

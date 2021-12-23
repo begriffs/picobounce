@@ -21,15 +21,15 @@ do
 	server_pid=$!
 
 	echo authenticating
-	./irc_auth creds < from_srv.out | tee to_srv.log > to_srv.in
+	./irc_auth begriffs creds < from_srv.out | tee to_srv.log > to_srv.in
 	if [ $? -ne 0 ]; then exit 1; fi
 
 	echo open for client connections
-	sh -c 'nc -l -k 3000 < to_cli.out | tee -a from_cli.log from_cli.in' &
+	sh -c 'nc -l -k 3000 < to_cli.out | tee -a from_cli.log > from_cli.in' &
 	client_pid=$!
 
 	echo running relay between pipes
-	sh -c './irc_relay from_cli.in to_cli.out < from_srv.out | tee -a to_srv.log to_srv.in' &
+	sh -c './irc_relay begriffs from_cli.in to_cli.out < from_srv.out | tee -a to_srv.log > to_srv.in' &
 	relay_pid=$!
 
 	wait $server_pid
