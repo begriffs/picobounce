@@ -1,18 +1,24 @@
 ## picobounce
 
-The simplest IRC bouncer I could make, one that fits my own needs. It requires
-SASL over TLS for the upstream server and for the connecting clients. It
-accepts only a single client (me!) and forwards them to a single upstream
-server. If you want to connect to multiple IRC networks then run multiple
-instances of picobounce, each on a different port.
+An attempt to make an IRC bouncer out of UNIXy tools connected by
+[ringfifo](https://github.com/begriffs/ringfifo). The bouncer uses
+netcat to do TLS upstream, and SSH to handle downstream auth.
+
+Currently doesn't maintain enough state for clients to work properly.
 
 ### Building
 
-Builds on OpenBSD with no dependencies. All other platforms require POSIX and
-[LibreSSL](https://www.libressl.org/).
+Requires
 
-The configure script will detect whatever dependencies are necessary on your
-system and create config.mk with the customizations.
+* POSIX
+* Flex
+* Bison
+* Netcat that supports TLS (OpenBSD's does)
+* [libderp](https://github.com/begriffs/libderp)
+* [ringfifo](https://github.com/begriffs/ringfifo)
+
+The configure script will set up build flags for libderp and create config.mk
+with customizations for the Makefile:
 
 ```sh
 PKG_CONFIG_PATH=/usr/local/libderp-dev-0.1.0 ./configure
@@ -21,33 +27,23 @@ make
 
 ### Usage
 
-The binary is currently hard-coded to look for the certificate files my.key and
-my.crt in the working directory. You can make those files with the openssl
-command line tool:
+The entrypoint is:
 
 ```sh
-openssl req -nodes -new -x509 -newkey rsa:2048 -keyout my.key -out my.crt
+$ ./bounce
 ```
 
-Create a configuration file, e.g. pico.conf:
+Edit the hardcoded username in that script. Store your password in a file
+called `creds` for the `irc_auth` program to read.
 
-```ini
-local_port=6697
-local_user=foo
-local_pass=bar
-host=chat.freenode.net
-port=6697
-nick=your_freenode_nick
-pass=your_freenode_pass
-```
+The bouncer listens on port 3000. Eventually the goal is to make it bind to the
+port for only local connections, and use SSH port forwarding to use it
+remotely. It requires no client authentication.
 
-Now run the bouncer:
+### History
 
-```sh
-./picobounce pico.conf
-```
-
-Connect to the bouncer with your IRC client, using the local_user and
-local_pass as SASL parameters. Some clients like weechat might not like your
-self-signed cert. You may need to run the bouncer on a real server with certs
-from a CA like letsencrypt.
+Earlier commits had this program as a single monolithic binary. The bouncer
+handled TLS itself with Libressl. However, after discovering the
+[pounce](https://git.causal.agency/pounce/about/) bouncer, there was no need to
+continue this project. I experimented instead with the netcat and named pipes
+thing, but lack motivation to finish the functionality.
