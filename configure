@@ -2,6 +2,17 @@
 
 rm -f config.mk
 
+compiles ()
+{
+	stage="$(mktemp -d)"
+	echo "$3" > "$stage/test.c"
+	(cc -Werror "$1" -o "$stage/test" "$stage/test.c" "$2" >/dev/null)
+	cc_success=$?
+	rm -rf "$stage"
+	return $cc_success
+}
+
+# https://github.com/begriffs/libderp needed on all platforms
 pkg-config --print-errors 'libderp-static >= 0.1.0'
 cat >> config.mk <<-EOF
 	CFLAGS += $(pkg-config --cflags libderp-static)
@@ -9,17 +20,61 @@ cat >> config.mk <<-EOF
 	LDLIBS += $(pkg-config --libs-only-l libderp-static)
 EOF
 
-# LibreSSL
-case "$(uname -s)" in
-	OpenBSD)
-		# included with OS
-		echo 'LDLIBS += -ltls' >> config.mk
-		;;
-	*)
-		pkg-config --print-errors 'libtls >= 2.5.0'
-		cat >> config.mk <<-EOF
-			CFLAGS += $(pkg-config --cflags libtls)
-			LDFLAGS += $(pkg-config --libs-only-L libtls)
-			LDLIBS += $(pkg-config --libs-only-l libtls)
-		EOF
-esac
+# Check for funopen(3).
+# if necessary, get from libbsd
+if ! compiles "" "" "
+	/* proper NetBSD-style declaration */
+	#include <stdint.h>
+	#include <stdio.h>
+	int main(void)
+	{
+		FILE* (*p)(const void *,
+		           int   (*readfn) (void *, char *, int),
+		           int   (*writefn)(void *, const char *, int),
+		           off_t (*seekfn) (void *, off_t, int),
+		           int (*closefn)(void *)) = funopen;
+		return (intptr_t)p;
+	}" \
+&& ! compiles "" "" "
+	/* other BSDs, and mac */
+	#include <stdint.h>
+	#include <stdio.h>
+	int main(void)
+	{
+		FILE* (*p)(const void *,
+		           int    (*readfn) (void *, char *, int),
+		           int    (*writefn)(void *, const char *, int),
+		           fpos_t (*seekfn) (void *, fpos_t, int),
+		           int    (*closefn)(void *)) = funopen;
+		return (intptr_t)p;
+	}"
+then
+	pkg-config --print-errors libbsd-overlay
+	cat >> config.mk <<-EOF
+		CFLAGS_LIBBSD += $(pkg-config --cflags libbsd-overlay)
+		LDFLAGS += $(pkg-config --libs-only-L libbsd-overlay)
+		LDLIBS += $(pkg-config --libs-only-l libbsd-overlay)
+	EOF
+fi
+
+# Check for libtls.
+# If necessary, get from LibreSSL
+if compiles "" "-ltls" "
+	#include <stdint.h>
+	#include <tls.h>
+	int main(void)
+	{
+		int (*p)(struct tls *, const char *, const char *) = tls_connect;
+		return (intptr_t)p;
+	}"
+then
+	# included with OS
+	echo 'LDLIBS += -ltls' >> config.mk
+else
+	pkg-config --print-errors 'libtls >= 2.5.0'
+	cat >> config.mk <<-EOF
+		CFLAGS += $(pkg-config --cflags libtls)
+		LDFLAGS += $(pkg-config --libs-only-L libtls)
+		LDLIBS += $(pkg-config --libs-only-l libtls)
+	EOF
+fi

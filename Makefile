@@ -1,20 +1,40 @@
 .POSIX:
 
-OBJS = config.o irc.o messages.o set.o window.o
+OBJS = config.o irc.o messages.o set.o window.o fopen_tls.o
 
-CFLAGS = -std=c99 -pedantic -Wall -Wextra -Wshadow -Wno-missing-braces -D_POSIX_C_SOURCE=200809L -g
+CFLAGS = -std=c99 -pedantic -g -Wall -Wextra -Wshadow
 LDLIBS = -lpthread
+
+POSIX = -D_POSIX_C_SOURCE=200809L
 
 .SUFFIXES :
 .SUFFIXES : .o .c
+
+.c.o :
+	$(CC) $(CFLAGS) $(POSIX) -c $<
 
 YACC=bison
 LEX=flex
 
 include config.mk
 
-irc_auth : irc_auth.c irc.h irc.a
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ irc_auth.c irc.a $(LDLIBS)
+####################################
+### program and objects
+
+picobounce : picobounce.c $(OBJS)
+	$(CC) $(CFLAGS) $(POSIX) $(LDFLAGS) -o $@ picobounce.c $(OBJS) $(LDLIBS)
+
+config.o : config.c config.h messages.h
+set.o : set.c set.h
+messages.o : messages.c messages.h irc.h window.h
+window.o : window.c window.h
+
+# not posix, requires BSD specifics
+fopen_tls.o : fopen_tls.c fopen_tls.h
+	$(CC) $(CFLAGS) $(CFLAGS_LIBBSD) -c fopen_tls.c
+
+####################################
+### bison/flex irc parsing subsystem
 
 irc.a : irc.tab.o irc.lex.o irc.o
 	ar r $@ $?
@@ -28,15 +48,10 @@ irc.lex.c irc.lex.h : irc.l
 	$(LEX) $(LFLAGS) --header-file=irc.lex.h --outfile=irc.lex.c irc.l
 
 irc.o : irc.c irc.tab.h irc.lex.h irc.h
-	$(CC) $(CFLAGS) -c irc.c
+	$(CC) $(CFLAGS) $(POSIX) -c irc.c
 
-picobounce : picobounce.c $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ picobounce.c $(OBJS) $(LDLIBS)
-
-config.o : config.c config.h messages.h
-set.o : set.c set.h
-messages.o : messages.c messages.h irc.h window.h
-window.o : window.c window.h
+####################################
+### .PHONY
 
 clean :
-	rm -f picobounce *.o
+	rm -f picobounce *.[oa] *.{tab,lex}.[ch]
