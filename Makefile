@@ -1,6 +1,6 @@
 .POSIX:
 
-OBJS = config.o irc.o messages.o set.o window.o fopen_tls.o
+OBJS = config.o irc.o messages.o set.o fopen_tls.o
 
 CFLAGS = -std=c99 -pedantic -g -Wall -Wextra -Wshadow
 LDLIBS = -lpthread
@@ -26,8 +26,7 @@ picobounce : picobounce.c $(OBJS)
 
 config.o : config.c config.h messages.h
 set.o : set.c set.h
-messages.o : messages.c messages.h irc.h window.h
-window.o : window.c window.h
+messages.o : messages.c messages.h irc.h
 
 # not posix, requires BSD specifics
 fopen_tls.o : fopen_tls.c fopen_tls.h

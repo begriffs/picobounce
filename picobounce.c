@@ -14,7 +14,6 @@
 #include "irc.h"
 #include "messages.h"
 #include "set.h"
-#include "window.h"
 
 #define QUOTE(name) #name
 #define STR(macro) QUOTE(macro)
