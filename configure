@@ -13,6 +13,7 @@ compiles ()
 }
 
 # https://github.com/begriffs/libderp needed on all platforms
+echo "Finding libderp..."
 pkg-config --print-errors 'libderp-static >= 0.1.0'
 cat >> config.mk <<-EOF
 	CFLAGS += $(pkg-config --cflags libderp-static)
@@ -20,8 +21,7 @@ cat >> config.mk <<-EOF
 	LDLIBS += $(pkg-config --libs-only-l libderp-static)
 EOF
 
-# Check for funopen(3).
-# if necessary, get from libbsd
+echo -n "Checking for funopen(3)..."
 if ! compiles "" "" "
 	/* proper NetBSD-style declaration */
 	#include <stdint.h>
@@ -49,16 +49,18 @@ if ! compiles "" "" "
 		return (intptr_t)p;
 	}"
 then
+	echo using libbsd
 	pkg-config --print-errors libbsd-overlay
 	cat >> config.mk <<-EOF
 		CFLAGS_LIBBSD += $(pkg-config --cflags libbsd-overlay)
 		LDFLAGS += $(pkg-config --libs-only-L libbsd-overlay)
 		LDLIBS += $(pkg-config --libs-only-l libbsd-overlay)
 	EOF
+else
+	echo supplied by OS
 fi
 
-# Check for libtls.
-# If necessary, get from LibreSSL
+echo -n Checking for TLS support...
 if compiles "" "-ltls" "
 	#include <stdint.h>
 	#include <tls.h>
@@ -68,9 +70,10 @@ if compiles "" "-ltls" "
 		return (intptr_t)p;
 	}"
 then
-	# included with OS
+	echo supplied by OS
 	echo 'LDLIBS += -ltls' >> config.mk
 else
+	echo using LibreSSL
 	pkg-config --print-errors 'libtls >= 2.5.0'
 	cat >> config.mk <<-EOF
 		CFLAGS += $(pkg-config --cflags libtls)
