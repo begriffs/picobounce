@@ -6,7 +6,7 @@ compiles ()
 {
 	stage="$(mktemp -d)"
 	echo "$3" > "$stage/test.c"
-	cc -Werror $1 -o "$stage/test" "$stage/test.c" $2 >/dev/null
+	cc -Werror $1 -o "$stage/test" "$stage/test.c" $2 >/dev/null 2>&1
 	cc_success=$?
 	rm -rf "$stage"
 	return $cc_success
